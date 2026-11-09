@@ -45,6 +45,7 @@
           <button class="btn" type="button" data-act="seek" data-d="1">+1 s</button>
           <button class="btn" type="button" data-act="seek" data-d="5">+5 s</button>
           <span class="grow"></span>
+          <button class="btn" type="button" data-act="replay" id="replaybtn" title="Revenir en arrière et relancer">↺ 5 s</button>
           <button class="btn" type="button" data-act="speed" id="speedbtn">1×</button>
           <button class="btn" type="button" data-act="pickvideo" title="Changer de vidéo">Vidéo</button>
         </div>
@@ -68,6 +69,7 @@
 
   <section id="roster" class="view" hidden></section>
   <section id="settings" class="view" hidden></section>
+  <section id="stats" class="view" hidden></section>
 </main>
 
 <dialog id="dlg"></dialog>
@@ -76,6 +78,9 @@
 <input type="file" id="fileimport" accept=".json,application/json" hidden>
 
 <script src="db.js"></script>
+<script src="cloud.js"></script>
+<script src="stats.js"></script>
+<script src="ui2.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

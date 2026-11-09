@@ -14,7 +14,7 @@ const fmtL = t => { if (t == null || isNaN(t)) return '--:--:--'; const s = Math
 const fmtD = d => { const [y, m, j] = String(d).split('-'); return j && m ? `${j}/${m}/${y}` : d; };
 
 const S = {
-  view: 'home', settings: null, roster: [], matches: [], m: null,
+  view: 'home', settings: null, roster: [], matches: [], m: null, prefsUpdated: 0, sf: { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '' },
   player: null, lastTag: null, videoReady: false, url: null, speedIdx: 2
 };
 const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
@@ -28,9 +28,10 @@ const MARK_LABELS = {
 
 /* ---------- sauvegarde ---------- */
 const warnStore = () => toast('Sauvegarde impossible sur cet appareil');
-const saveSettings = () => DB.put('kv', { key: 'settings', value: S.settings }).catch(warnStore);
-const saveRoster = () => DB.put('kv', { key: 'roster', value: S.roster }).catch(warnStore);
-const saveMatch = () => S.m && DB.put('matches', S.m).catch(warnStore);
+const touchPrefs = () => { S.prefsUpdated = Date.now(); DB.put('kv', { key: 'prefsUpdated', value: S.prefsUpdated }).catch(() => { }); Cloud.queuePrefs(); };
+const saveSettings = () => { touchPrefs(); return DB.put('kv', { key: 'settings', value: S.settings }).catch(warnStore); };
+const saveRoster = () => { touchPrefs(); return DB.put('kv', { key: 'roster', value: S.roster }).catch(warnStore); };
+const saveMatch = () => { if (!S.m) return; S.m.updated = Date.now(); Cloud.queue(S.m); return DB.put('matches', S.m).catch(warnStore); };
 
 let toastTimer;
 function toast(msg) {
@@ -89,6 +90,7 @@ function setView(v) {
   if (v === 'home') renderHome();
   if (v === 'roster') renderRoster();
   if (v === 'settings') renderSettings();
+  if (v === 'stats') renderStats();
   if (v === 'match') { renderMatch(); }
 }
 
@@ -98,6 +100,7 @@ function renderBar() {
   if (S.view === 'home') {
     bar.innerHTML = `<h1>Analyse vidéo · HBCCS</h1><span class="grow"></span>
       <button class="btn" type="button" data-act="roster">Effectif</button>
+      <button class="btn" type="button" data-act="stats">Statistiques</button>
       <button class="btn" type="button" data-act="settings">Réglages</button>
       <button class="btn" type="button" data-act="backup">Sauvegarder</button>
       <button class="btn" type="button" data-act="import">Restaurer</button>`;
@@ -107,9 +110,10 @@ function renderBar() {
       <div id="gclock" class="off">Temps de jeu : poser les repères</div>
       <span class="grow"></span>
       <button class="btn" type="button" data-act="sheet">Feuille de match</button>
+      <button class="btn" type="button" data-act="stats">Statistiques</button>
       <button class="btn" type="button" data-act="csv">Export CSV</button>`;
   } else {
-    const t = S.view === 'roster' ? 'Effectif' : 'Réglages';
+    const t = ({ roster: 'Effectif', stats: 'Statistiques' })[S.view] || 'Réglages';
     bar.innerHTML = `${back}<h1>${t}</h1>`;
   }
 }
@@ -119,17 +123,19 @@ function renderHome() {
   const ms = [...S.matches].sort((a, b) => (b.date + b.created).localeCompare(a.date + a.created));
   $('#home').innerHTML = `<div class="page">
     <div class="btnrow" style="margin-bottom:14px">
-      <button class="btn primary" type="button" data-act="newmatch">Nouveau match</button>
+      <button class="btn primary" type="button" data-act="pickmatch">Choisir un match</button>
+      <button class="btn" type="button" data-act="newmatch">Nouveau match (saisie libre)</button>
     </div>
     ${ms.length ? ms.map(m => `
       <div class="matchcard">
         <div class="i"><b>HBCCS vs ${esc(m.adversaire)}</b>
-          <div class="muted">${fmtD(m.date)} · ${m.tags.length} actions · ${m.possessions.length} possessions</div></div>
+          <div class="muted">${fmtD(m.date)}${m.score && m.score[0] != null ? ' · ' + m.score[0] + '-' + m.score[1] : ''} · ${m.tags.length} actions · ${m.possessions.length} possessions</div></div>
         <button class="btn primary" type="button" data-act="openmatch" data-id="${m.id}">Ouvrir</button>
         <button class="btn danger small" type="button" data-act="delmatch" data-id="${m.id}">Supprimer</button>
       </div>`).join('') :
       `<p class="muted">Aucun match pour l’instant. Crée-en un pour commencer.</p>`}
-    ${S.roster.length ? '' : `<p class="hint">Commence par saisir ton effectif (bouton « Effectif » en haut).</p>`}
+    ${Cloud.session ? '' : `<p class="hint">Connecte-toi (Réglages) pour récupérer les matchs et effectifs de ton application et sauvegarder en ligne.</p>`}
+    ${S.roster.length || Cloud.session ? '' : `<p class="hint">Ou saisis ton effectif à la main (bouton « Effectif » en haut).</p>`}
     <p class="hint">Les vidéos restent sur l’appareil. Les données sont enregistrées dans cette application : utilise « Sauvegarder » régulièrement.</p>
   </div>`;
 }
@@ -330,6 +336,7 @@ function renderSettings() {
       <div class="list-row"><label for="pm" style="flex:1">Durée d’une période (minutes)</label><input id="pm" class="w-num" type="number" min="1" max="60" value="${st.periodMinutes}" data-set="periodMinutes"></div>
       <div class="list-row"><label for="fps" style="flex:1">Images par seconde de la vidéo</label><input id="fps" class="w-num" type="number" min="10" max="60" value="${st.fps}" data-set="fps"></div>
     </div>
+    ${compteCard()}${saisieCard()}
     ${LISTS.map(L => `<div class="card"><div class="card-h"><h2>${L.title}</h2></div>
       ${st[L.key].map((it, i) => `<div class="list-row">
         <input type="text" value="${esc(it.label)}" data-set="${L.key}.${i}.label" aria-label="Nom">
@@ -358,8 +365,10 @@ function dlgNewMatch() {
 function dlgSheet() {
   const m = S.m;
   if (!S.roster.length) {
-    openDlg(`<h2>Feuille de match</h2><p>Ton effectif est vide. Ajoute d’abord tes joueurs.</p>
-      <div class="btnrow"><button class="btn primary" type="button" data-act="roster-from-dlg">Saisir l’effectif</button>
+    openDlg(`<h2>Feuille de match</h2><p>Ton effectif est vide. Colle la feuille du match ou ajoute tes joueurs.</p>
+      <div class="btnrow"><button class="btn primary" type="button" data-act="sheetpaste">Coller une feuille</button>
+      <button class="btn" type="button" data-act="newplayer">Nouveau joueur</button>
+      <button class="btn" type="button" data-act="roster-from-dlg">Saisir l’effectif</button>
       <button class="btn" type="button" data-act="closedlg">Fermer</button></div>`);
     return;
   }
@@ -372,6 +381,8 @@ function dlgSheet() {
         <input class="w-num" type="text" inputmode="numeric" value="${esc(s ? s.num : p.num)}" data-shn="${p.id}" aria-label="Numéro de ${esc(p.name)}"></div>`;
     }).join('')}
     <div class="btnrow" style="margin-top:12px"><button class="btn primary" type="button" data-act="savesheet">Enregistrer la feuille</button>
+    <button class="btn" type="button" data-act="sheetpaste">Coller une feuille</button>
+    <button class="btn" type="button" data-act="newplayer">Nouveau joueur</button>
     <button class="btn" type="button" data-act="closedlg">Annuler</button></div>`);
 }
 
@@ -446,6 +457,7 @@ function ensureOpen() {
 }
 function setPoss(f, id) {
   if (!needVideo()) return;
+  autoPause();
   const o = ensureOpen();
   if (o[f] === id) o[f] = null; else o[f] = id;
   if (f === 'phase') {
@@ -458,6 +470,7 @@ function setPoss(f, id) {
 }
 function startPoss() {
   if (!needVideo()) return;
+  autoPause();
   const o = ensureOpen(); o.start = V().currentTime;
   saveMatch(); renderPanel(); renderTimeline();
 }
@@ -469,8 +482,14 @@ function validPoss() {
   if (!o.jeu) miss.push('le jeu');
   if (!o.issue) miss.push('l’issue');
   if (miss.length) { toast('Il manque : ' + miss.join(', ')); return; }
+  autoPause();
+  S.recapEnd = null;
+  if (S.settings.saisie.recap) dlgRecap(); else commitPoss();
+}
+function commitPoss() {
+  const o = S.m.open; if (!o) return;
   const st = S.settings;
-  let end = o.end ?? V().currentTime;
+  let end = S.recapEnd ?? o.end ?? V().currentTime; S.recapEnd = null;
   if (end <= o.start) end = o.start + 1;
   const j = byId(st.jeux, o.jeu), ph = byId(st.phases, o.phase);
   const p = {
@@ -483,7 +502,7 @@ function validPoss() {
   S.m.tags.forEach(t => { if (!t.poss && t.vt >= p.start && t.vt <= p.end) t.poss = p.id; });
   S.m.possessions.push(p); S.m.possessions.sort((a, b) => a.start - b.start);
   S.m.open = null; saveMatch();
-  renderPanel(); renderTimeline(); renderJournal();
+  closeDlg(); renderPanel(); renderTimeline(); renderJournal();
   toast('Possession enregistrée : ' + p.jeuLabel + ' · ' + p.issueLabel);
 }
 
@@ -498,10 +517,10 @@ function download(name, text, type) {
 const slug = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 const csvCell = v => { const s = String(v ?? ''); return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 
-function buildCSV(m) {
-  const st = S.settings;
-  const head = ['match', 'adversaire', 'date', 'type', 'periode', 'temps_jeu', 'temps_video', 'video_s', 'debut_s', 'fin_s', 'horodatage',
+const CSV_HEAD = ['match', 'adversaire', 'date', 'type', 'periode', 'temps_jeu', 'temps_video', 'video_s', 'debut_s', 'fin_s', 'horodatage',
     'numero', 'joueur', 'action', 'phase', 'jeu', 'type_jeu', 'issue', 'realisee', 'cause', 'id_possession', 'commentaire'];
+function csvRows(m) {
+  const st = S.settings;
   const rows = [];
   const gi = t => gameInfo(m, t);
   const base = t => { const g = gi(t); return [g ? g.period : '', g ? fmt(g.t) : '', fmtL(t)]; };
@@ -525,7 +544,12 @@ function buildCSV(m) {
     rows.push([m.id, m.adversaire, m.date, 'repere', '', '', fmtL(x.t), r2(x.t), '', '', '', '', '', MARK_LABELS[x.type], '', '', '', '', '', '', '', '']);
   });
   rows.sort((a, b) => parseFloat(a[7] || a[8] || 0) - parseFloat(b[7] || b[8] || 0));
-  return '﻿' + [head, ...rows].map(r => r.map(csvCell).join(';')).join('\r\n');
+  return rows;
+}
+function buildCSV(arg) {
+  const list = Array.isArray(arg) ? arg : [arg];
+  const all = []; list.forEach(m => all.push(...csvRows(m)));
+  return '\ufeff' + [CSV_HEAD, ...all].map(r => r.map(csvCell).join(';')).join('\r\n');
 }
 
 function backupJSON() {
@@ -537,7 +561,7 @@ async function importJSON(file) {
   try { data = JSON.parse(await file.text()); } catch { toast('Fichier illisible.'); return; }
   if (data.app !== 'hb-analyse') { toast('Ce fichier n’est pas une sauvegarde de l’application.'); return; }
   if (!confirm('Restaurer cette sauvegarde ? Les matchs de la sauvegarde sont ajoutés (ou remplacés s’ils existent déjà), l’effectif et les réglages sont remplacés.')) return;
-  if (data.settings) { S.settings = Object.assign(clone(DEFAULTS), data.settings); await saveSettings(); }
+  if (data.settings) { S.settings = Object.assign(clone(DEFAULTS), data.settings); S.settings.saisie = Object.assign({}, DEFAULTS.saisie, S.settings.saisie || {}); await saveSettings(); }
   if (data.roster) { S.roster = data.roster; await saveRoster(); }
   for (const m of data.matches || []) {
     await DB.put('matches', m);
@@ -567,11 +591,26 @@ document.addEventListener('click', e => {
     case 'delmatch': {
       const m = S.matches.find(x => x.id === d.id);
       if (confirm(`Supprimer le match contre ${m.adversaire} et toutes ses données ?`)) {
-        S.matches = S.matches.filter(x => x.id !== d.id); DB.del('matches', d.id).catch(warnStore); renderHome();
+        S.matches = S.matches.filter(x => x.id !== d.id); DB.del('matches', d.id).catch(warnStore); Cloud.remove(d.id); renderHome();
       }
       break;
     }
     case 'closedlg': closeDlg(); break;
+    case 'stats': setView('stats'); break;
+    case 'sfreset': S.sf = { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '' }; renderStats(); break;
+    case 'csvsel': download(`analyse-${today()}.csv`, buildCSV(statsMatches()), 'text/csv;charset=utf-8'); break;
+    case 'pickmatch': dlgPick(); break;
+    case 'cloudrefresh': dlgPick(); break;
+    case 'cloudmatch': importCloudMatch(d.id); break;
+    case 'dologin': doLogin(); break;
+    case 'logout': Cloud.logout(); toast('Déconnecté.'); if (S.view === 'settings') renderSettings(); break;
+    case 'sync': Cloud.sync().then(r => { if (r && r.error) toast(Cloud.state.msg); else if (r) { toast('Synchronisé (' + r.down + ' reçus, ' + r.up + ' envoyés).'); } if (S.view === 'home') renderHome(); }); break;
+    case 'pconfirm': commitPoss(); break;
+    case 'replay': if (needVideo()) { v.currentTime = Math.max(0, v.currentTime - S.settings.saisie.replaySec); v.play(); } break;
+    case 'sheetpaste': collectSheet(); dlgSheetPaste(); break;
+    case 'dosheetpaste': doSheetPaste(); break;
+    case 'newplayer': collectSheet(); dlgNewPlayer(); break;
+    case 'donewplayer': doNewPlayer(); break;
     case 'backup': download(`sauvegarde-analyse-${today()}.json`, backupJSON(), 'application/json'); break;
     case 'import': $('#fileimport').click(); break;
     case 'csv': if (S.m) download(`${slug(S.m.date + '-hbccs-' + S.m.adversaire)}.csv`, buildCSV(S.m), 'text/csv;charset=utf-8'); break;
@@ -587,7 +626,7 @@ document.addEventListener('click', e => {
     case 'delmark': S.m.marks = S.m.marks.filter(x => x.id !== d.id); saveMatch(); renderMarks(); renderTimeline(); renderJournal(); updateTime(v.currentTime || 0); break;
 
     case 'tab': S.tab = d.id; renderPanel(); break;
-    case 'player': S.player = S.player === d.id ? null : d.id; renderPanel(); break;
+    case 'player': autoPause(); S.player = S.player === d.id ? null : d.id; renderPanel(); break;
     case 'tag': tagAction(d.id); break;
     case 'undo': {
       const t = S.m.tags.find(x => x.id === S.lastTag);
@@ -633,17 +672,9 @@ document.addEventListener('click', e => {
     }
     case 'pastelist': dlgPaste(); break;
     case 'dopaste': {
-      let n = 0;
-      $('#paste').value.split(/\r?\n/).forEach(line => {
-        const l = line.trim(); if (!l) return;
-        const mm = l.match(/^(\d{1,2})[\s.\-:)]+(.+)$/);
-        const num = mm ? mm[1] : '', rest = (mm ? mm[2] : l).trim().split(/\s+/);
-        const POSTES = /^(gardien|ailier|arri[eè]re|demi-?centre|centre|pivot|ailier\s?(gauche|droit)|ag|ad|dc|ar|piv|g)$/i;
-        let poste = '';
-        if (rest.length > 1 && POSTES.test(rest[rest.length - 1])) poste = rest.pop();
-        S.roster.push({ id: uid(), num, name: rest.join(' '), poste }); n++;
-      });
-      saveRoster(); closeDlg(); renderRoster(); toast(n + ' joueurs ajoutés.');
+      const items = parsePaste($('#paste').value);
+      items.forEach(x => S.roster.push({ id: uid(), num: x.num, name: x.name, poste: x.poste }));
+      saveRoster(); closeDlg(); renderRoster(); toast(items.length + ' joueurs ajoutés.');
       break;
     }
 
@@ -656,7 +687,7 @@ document.addEventListener('click', e => {
     case 'delrow': S.settings[d.list].splice(Number(d.i), 1); saveSettings(); renderSettings(); break;
     case 'resetlists':
       if (confirm('Remettre toutes les listes aux valeurs par défaut ?')) {
-        const keep = { periodMinutes: S.settings.periodMinutes, fps: S.settings.fps };
+        const keep = { periodMinutes: S.settings.periodMinutes, fps: S.settings.fps, saisie: S.settings.saisie };
         S.settings = Object.assign(clone(DEFAULTS), keep); saveSettings(); renderSettings();
       }
       break;
@@ -666,7 +697,15 @@ document.addEventListener('click', e => {
 /* saisie dans les champs (effectif, réglages) */
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.dataset.r) {
+  if (t.dataset.sk) {
+    const k = t.dataset.sk;
+    S.settings.saisie[k] = t.type === 'checkbox' ? t.checked : Math.min(30, Math.max(1, Number(t.value) || 5));
+    saveSettings(); applyReplayBtn();
+  } else if (t.dataset.sf) {
+    S.sf[t.dataset.sf] = t.value; renderStats();
+  } else if (t.dataset.pick) {
+    S.pickEq = t.value; renderPick();
+  } else if (t.dataset.r) {
     const [i, f] = t.dataset.r.split('.'); S.roster[Number(i)][f] = t.value.trim(); saveRoster();
   } else if (t.dataset.set) {
     const parts = t.dataset.set.split('.');
@@ -728,14 +767,19 @@ async function init() {
     S.settings = Object.assign(clone(DEFAULTS), (st && st.value) || {});
     const ro = await DB.get('kv', 'roster');
     S.roster = (ro && ro.value) || [];
+    const pu = await DB.get('kv', 'prefsUpdated');
+    S.prefsUpdated = (pu && pu.value) || 0;
     S.matches = await DB.all('matches');
   } catch (err) {
     S.settings = clone(DEFAULTS);
     toast('Stockage du navigateur indisponible : les données ne seront pas conservées.');
   }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => { });
+  S.settings.saisie = Object.assign({}, DEFAULTS.saisie, S.settings.saisie || {});
   bindStatic();
+  applyReplayBtn();
   setView('home');
+  if (Cloud.session && navigator.onLine) Cloud.sync(true).then(() => { if (S.view === 'home') renderHome(); });
   requestAnimationFrame(tick);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
 }

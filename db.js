@@ -33,6 +33,7 @@ const DB = (() => {
 const DEFAULTS = {
   periodMinutes: 25,
   fps: 25,
+  saisie: { autoPause: true, recap: true, replay: true, replaySec: 5 },
   actions: [
     { id: 'tir', label: 'Tir' },
     { id: 'but', label: 'But' },

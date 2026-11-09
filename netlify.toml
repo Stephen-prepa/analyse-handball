@@ -1,0 +1,6 @@
+# Site statique : aucune commande de build, le dossier est publié tel quel.
+[build]
+  publish = "."
+  # Garde-fou crédits : aucun build n'est lancé sur la branche "main" (production).
+  # Code de sortie 0 = Netlify annule le build ; 1 = le build continue (cas de la branche "dev").
+  ignore = '[ "$BRANCH" = "main" ]'
