@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Analyse vidéo handball</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0E1318">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Analyse">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header id="bar"></header>
+
+<main>
+  <section id="home" class="view"></section>
+
+  <section id="match" class="view" hidden>
+    <div id="left">
+      <div id="vidwrap">
+      <div id="stage">
+        <video id="video" playsinline preload="metadata"></video>
+        <div id="novideo">
+          <p>La vidéo reste sur cet appareil : rien n’est envoyé sur internet.</p>
+          <button class="btn primary" data-act="pickvideo" type="button">Choisir la vidéo du match</button>
+          <p id="novideo-name" class="hint"></p>
+        </div>
+      </div>
+
+      <div id="transport">
+        <div class="trow">
+          <button class="btn" type="button" data-act="seek" data-d="-5">−5 s</button>
+          <button class="btn" type="button" data-act="seek" data-d="-1">−1 s</button>
+          <button class="btn" type="button" data-act="frame" data-d="-1">−1 img</button>
+          <button class="btn primary play" type="button" data-act="play" id="playbtn" aria-label="Lecture">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path id="playicon" d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>
+          </button>
+          <button class="btn" type="button" data-act="frame" data-d="1">+1 img</button>
+          <button class="btn" type="button" data-act="seek" data-d="1">+1 s</button>
+          <button class="btn" type="button" data-act="seek" data-d="5">+5 s</button>
+          <span class="grow"></span>
+          <button class="btn" type="button" data-act="speed" id="speedbtn">1×</button>
+          <button class="btn" type="button" data-act="pickvideo" title="Changer de vidéo">Vidéo</button>
+        </div>
+        <div class="srow">
+          <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Position dans la vidéo">
+          <span id="vt" class="mono">00:00:00 / 00:00:00</span>
+        </div>
+      </div>
+
+      </div>
+
+      <div id="below">
+        <div id="marks"></div>
+        <div id="timeline"></div>
+        <div id="journal"></div>
+      </div>
+    </div>
+
+    <div id="right"><div id="panel"></div></div>
+  </section>
+
+  <section id="roster" class="view" hidden></section>
+  <section id="settings" class="view" hidden></section>
+</main>
+
+<dialog id="dlg"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="filevideo" accept="video/*,.mp4,.mov,.m4v" hidden>
+<input type="file" id="fileimport" accept=".json,application/json" hidden>
+
+<script src="db.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
