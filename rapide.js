@@ -50,7 +50,7 @@ function rqValueLabel(s, id) {
 /* grille dont la taille des boutons s'adapte au nombre de boutons */
 function rqGrid(step, opts, chosen, forceCols) {
   const n = opts.length;
-  const cols = forceCols || step === 'joueur' ? (n <= 6 ? 3 : n <= 16 ? 4 : 5) : (n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5);
+  const cols = forceCols ? forceCols : step === 'joueur' ? (n <= 6 ? 3 : n <= 16 ? 4 : 5) : (n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5);
   const h = n <= 2 ? 96 : n <= 4 ? 80 : n <= 6 ? 72 : n <= 9 ? 64 : n <= 16 ? 58 : 48;
   const fs = n <= 4 ? 20 : n <= 9 ? 16 : n <= 16 ? 15 : 13;
   return `<div class="rq-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr));--rq-h:${h}px;--rq-fs:${fs}px">${opts.map(o =>

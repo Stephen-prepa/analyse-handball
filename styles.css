@@ -214,8 +214,9 @@ th:not(:first-child){text-align:right}
 .pal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .pal-sw{min-height:64px;border-radius:12px;border:3px solid transparent}
 .pal-sw.on{border-color:var(--text)}
-.rq-cat{border-color:var(--cc);color:var(--cc)}
-.rq-cat[aria-pressed="true"]{background:var(--cc);border-color:var(--cc);color:var(--ink)}
+.rq-cat{background:var(--cc);border-color:var(--cc);color:#0E1318}
+.rq-cat span{color:#0E1318;opacity:.75}
+.rq-cat[aria-pressed="true"]{box-shadow:0 0 0 3px #fff inset}
 .rq-crumb[style*="--cc"]{border-color:var(--cc);color:var(--cc)}
 .seq-card{border-left:8px solid var(--cc,var(--line));width:300px}
 .seq-card.sel{border-color:var(--cc,var(--accent));border-left-width:8px;background:var(--panel);outline:2px solid var(--cc,var(--accent));outline-offset:-2px}
@@ -245,8 +246,11 @@ body.fs #seqbar{display:none!important}
 
 /* grand écran : cartes de marquage */
 .rq-opt{position:relative}
-.rq-key{position:absolute;top:4px;right:6px;font-style:normal;font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 5px;line-height:16px}
-.rq-cat[aria-pressed="true"] .rq-key{color:var(--ink);border-color:var(--ink)}
+.rq-key{position:static;margin-top:2px;font-style:normal;font-size:11px;font-weight:700;color:var(--muted);background:rgba(255,255,255,.0);border:1px solid var(--line);border-radius:5px;padding:0 5px;line-height:16px}
+.rq-cat .rq-key{color:#0E1318;border-color:rgba(14,19,24,.55);background:rgba(255,255,255,.35)}
+.key-lab{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+.key-in{width:120px!important}
+.key-in:focus{border-color:var(--accent);outline:2px solid var(--accent)}
 .key-in{width:64px;text-align:center;font-weight:700}
 .list-row.phase-row{flex-wrap:wrap}
 #match.fs{grid-template-columns:minmax(0,1fr) 300px}

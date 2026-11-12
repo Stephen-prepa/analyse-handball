@@ -339,12 +339,13 @@ function renderSettings() {
     </div>
     ${compteCard()}${saisieCard()}${rapideCard()}${shortcutsCard()}
     ${LISTS.map(L => `<div class="card"><div class="card-h"><h2>${L.title}</h2></div>
+      ${L.key === 'phases' ? '<p class="hint">Pastille = couleur de la carte. « Touche » : clique dans la case, puis appuie sur la lettre voulue au clavier (Retour arrière pour la retirer). Utile avec un clavier (Mac) ; au doigt, les cartes suffisent.</p>' : ''}
       ${st[L.key].map((it, i) => `<div class="list-row ${L.key === 'phases' ? 'phase-row' : ''}">
         <input type="text" value="${esc(it.label)}" data-set="${L.key}.${i}.label" aria-label="Nom">
         ${L.cols.includes('kind') ? `<select data-set="${L.key}.${i}.kind" aria-label="Type">${opts(KINDS, it.kind)}</select>` : ''}
         ${L.cols.includes('ask') ? `<button class="swatch" type="button" data-act="colorpick" data-i="${i}" style="background:${esc(it.color || '#9AA8B6')}" aria-label="Couleur de ${esc(it.label)}"></button>` : ''}
         ${L.cols.includes('side') ? `<select data-set="${L.key}.${i}.side" aria-label="Côté">${opts(SIDES, it.side)}</select>` : ''}
-        ${L.cols.includes('ask') ? `<input class="w-num key-in" type="text" readonly value="${esc(it.key || '')}" placeholder="touche" data-pkey="${i}" aria-label="Touche du clavier pour ${esc(it.label)}">` : ''}
+        ${L.cols.includes('ask') ? `<span class="key-lab">Touche <input class="w-num key-in" type="text" readonly value="${it.key ? esc(it.key.toUpperCase()) : ''}" placeholder="aucune" data-pkey="${i}" aria-label="Touche du clavier pour ${esc(it.label)}"></span>` : ''}
         ${L.cols.includes('ask') ? `<label class="chk-i"><input type="checkbox" data-set="${L.key}.${i}.jeu" ${it.jeu !== false ? 'checked' : ''}> demande un jeu</label>` : ''}
         <button class="btn small" type="button" data-act="rowmove" data-list="${L.key}" data-i="${i}" data-d="-1" aria-label="Monter">▲</button>
         <button class="btn small" type="button" data-act="rowmove" data-list="${L.key}" data-i="${i}" data-d="1" aria-label="Descendre">▼</button>

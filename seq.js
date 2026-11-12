@@ -145,7 +145,7 @@ document.addEventListener('keydown', e => {
     if (ck) { toast('Déjà utilisée pour : ' + SC_LABELS[ck]); return; }
     const other = S.settings.phases.find(p => p !== ph && p.key === e.key);
     if (other) { toast('Déjà utilisée pour la catégorie : ' + other.label); return; }
-    ph.key = e.key; t0.value = e.key; saveSettings(); return;
+    ph.key = e.key; t0.value = e.key.toUpperCase(); saveSettings(); toast('Touche ' + e.key.toUpperCase() + ' → ' + ph.label); return;
   }
   const t = e.target; if (!t.dataset || !t.dataset.sc) return;
   if (['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) return;
@@ -157,3 +157,6 @@ document.addEventListener('keydown', e => {
   if (pc) { toast('Déjà utilisée pour la catégorie : ' + pc.label); return; }
   sc[t.dataset.sc] = e.key; t.value = e.key; saveSettings();
 });
+
+document.addEventListener('focusin', e => { const t = e.target; if (t.dataset && t.dataset.pkey !== undefined) t.placeholder = 'Appuie sur une touche…'; });
+document.addEventListener('focusout', e => { const t = e.target; if (t.dataset && t.dataset.pkey !== undefined) t.placeholder = 'aucune'; });
