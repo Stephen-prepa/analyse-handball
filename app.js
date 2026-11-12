@@ -14,7 +14,7 @@ const fmtL = t => { if (t == null || isNaN(t)) return '--:--:--'; const s = Math
 const fmtD = d => { const [y, m, j] = String(d).split('-'); return j && m ? `${j}/${m}/${y}` : d; };
 
 const S = {
-  view: 'home', settings: null, roster: [], matches: [], m: null, prefsUpdated: 0, rq: { cur: null, undoId: null, undoUntil: 0, lastSecs: null }, seqSel: null, seqOpen: true, playWin: null, sf: { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '' },
+  view: 'home', settings: null, roster: [], matches: [], m: null, prefsUpdated: 0, rq: { cur: null, undoId: null, undoUntil: 0, lastSecs: null }, seqSel: null, seqOpen: true, playWin: null, fs: false, sf: { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '' },
   player: null, lastTag: null, videoReady: false, url: null, speedIdx: 2
 };
 const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
@@ -92,7 +92,7 @@ function setView(v) {
   if (v === 'roster') renderRoster();
   if (v === 'settings') renderSettings();
   if (v === 'stats') renderStats();
-  if (v === 'match') { renderMatch(); }
+  if (v === 'match') { renderMatch(); } else if (S.fs) setFs(false);
   renderBanner();
 }
 
@@ -221,7 +221,7 @@ function renderJournal() {
     const sub = [p.inc ? 'à compléter' : '', p.playerId || p.pname ? (p.pnum ? '#' + p.pnum + ' ' : '') + (p.pname || '') : '', p.real ? lab(st.realisations, p.real, p.realLabel) : '', p.cause ? lab(st.causes, p.cause, p.causeLabel) : ''].filter(Boolean).join(' · ');
     return `<div class="jr poss ${def ? 'def' : ''}" data-act="goto" data-t="${Math.max(0, p.start - 2)}">
       <span class="g">${gameLabel(m, p.start)}</span><span class="v mono">${fmtL(p.start)}</span>
-      <span class="t">Possession · ${parts.map(esc).join(' · ')}<small>${esc(sub)}${sub ? ' · ' : ''}${Math.round(p.end - p.start)} s de vidéo</small></span>
+      <span class="t"><i class="dot" style="background:${catColor(p.phase)}"></i>Possession · ${parts.map(esc).join(' · ')}<small>${esc(sub)}${sub ? ' · ' : ''}${Math.round(p.end - p.start)} s de vidéo</small></span>
       <span class="bt">${p.inc ? `<button class="btn small" type="button" data-act="rqresume" data-id="${p.id}">Compléter</button>` : ''}<button class="btn small" type="button" data-act="editposs" data-id="${p.id}">Modifier</button>
       <button class="btn small danger" type="button" data-act="delposs" data-id="${p.id}" aria-label="Supprimer">✕</button></span></div>`;
   }).join('');
@@ -342,6 +342,7 @@ function renderSettings() {
       ${st[L.key].map((it, i) => `<div class="list-row">
         <input type="text" value="${esc(it.label)}" data-set="${L.key}.${i}.label" aria-label="Nom">
         ${L.cols.includes('kind') ? `<select data-set="${L.key}.${i}.kind" aria-label="Type">${opts(KINDS, it.kind)}</select>` : ''}
+        ${L.cols.includes('ask') ? `<button class="swatch" type="button" data-act="colorpick" data-i="${i}" style="background:${esc(it.color || '#9AA8B6')}" aria-label="Couleur de ${esc(it.label)}"></button>` : ''}
         ${L.cols.includes('side') ? `<select data-set="${L.key}.${i}.side" aria-label="Côté">${opts(SIDES, it.side)}</select>` : ''}
         ${L.cols.includes('ask') ? `<label class="chk-i"><input type="checkbox" data-set="${L.key}.${i}.jeu" ${it.jeu !== false ? 'checked' : ''}> demande un jeu</label>` : ''}
         <button class="btn small" type="button" data-act="rowmove" data-list="${L.key}" data-i="${i}" data-d="-1" aria-label="Monter">▲</button>
@@ -423,7 +424,7 @@ function unloadVideo() {
 function openMatch(id) {
   S.m = S.matches.find(x => x.id === id);
   S.player = null; S.lastTag = null; lastT = -1;
-  S.rq.cur = null; S.rq.undoId = null; S.rq.lastSecs = null; S.seqSel = null; S.playWin = null;
+  S.rq.cur = null; S.rq.undoId = null; S.rq.lastSecs = null; S.seqSel = null; S.playWin = null; setFs(false);
   unloadVideo();
   setView('match');
   if (!S.m.sheet.length && S.roster.length) dlgSheet();
@@ -602,12 +603,18 @@ document.addEventListener('click', e => {
     }
     case 'closedlg': closeDlg(); break;
     case 'stats': setView('stats'); break;
+    case 'fs': setFs(!S.fs); break;
+    case 'fscard': seqPlay(d.id); if (S.settings.saisie.fsShrink) setFs(false); break;
+    case 'fsall': setFs(false); break;
+    case 'colorpick': dlgColor(Number(d.i)); break;
+    case 'setcolor': setPhaseColor(Number(d.i), d.c); break;
+    case 'seqshift': seqShift(d.id, d.w, Number(d.d)); break;
+    case 'seqhere': seqHere(d.id, d.w); break;
     case 'rq': rqPick(d.s, d.id); break;
     case 'rqclear': rqClear(d.s); break;
     case 'rqundo': rqUndo(); break;
     case 'rqresume': rqResume(d.id); break;
     case 'seqplay': seqPlay(d.id); break;
-    case 'seqoff': seqOff(d.id, d.w, Number(d.d)); break;
     case 'seqreset': seqReset(d.id); break;
     case 'seqtoggle': S.seqOpen = S.seqOpen === false; renderBanner(); break;
     case 'scdefault': S.settings.shortcuts = clone(DEFAULTS.shortcuts); saveSettings(); renderSettings(); break;
@@ -707,7 +714,7 @@ document.addEventListener('click', e => {
     case 'addrow': {
       const L = d.list, row = { id: uid(), label: 'Nouveau' };
       if (['phases', 'jeux', 'issues'].includes(L)) row.side = 'attaque';
-      if (L === 'phases') row.jeu = true;
+      if (L === 'phases') { row.jeu = true; row.color = PALETTE.find(c => !S.settings.phases.some(p => p.color === c)) || PALETTE[S.settings.phases.length % PALETTE.length]; }
       if (L === 'jeux') row.kind = 'combinaison';
       S.settings[L].push(row); saveSettings(); renderSettings(); break;
     }
@@ -800,6 +807,7 @@ function migrateSettings() {
   st.rapide = Object.assign(clone(D.rapide), st.rapide || {});
   st.rapide.res = Object.assign(clone(D.rapide.res), st.rapide.res || {});
   if (!st.phases.some(p => p.id === 'montee')) st.phases.splice(1, 0, clone(D.phases.find(p => p.id === 'montee')));
+  st.phases.forEach((p, i) => { if (!p.color) p.color = PHASE_COLORS[p.id] || PALETTE[i % PALETTE.length]; });
   st.phases.forEach(p => { if (p.jeu === undefined) { const d = D.phases.find(x => x.id === p.id); p.jeu = d ? d.jeu : true; } });
   if (!st.issues.some(i => i.id === 'pas-but')) st.issues.splice(st.issues.length - 1, 0, clone(D.issues.find(i => i.id === 'pas-but')));
 }

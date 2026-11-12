@@ -1,6 +1,6 @@
 'use strict';
 /* Service worker : l'application fonctionne sans connexion après la première ouverture */
-const CACHE = 'hb-analyse-v3';
+const CACHE = 'hb-analyse-v4';
 const FILES = ['./', 'index.html', 'styles.css', 'db.js', 'cloud.js', 'stats.js', 'ui2.js', 'rapide.js', 'seq.js', 'app.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 

@@ -35,7 +35,7 @@ function rqNext(c) {
 }
 function rqOptions(step, c) {
   const st = S.settings;
-  if (step === 'phase') return st.phases.map(p => ({ id: p.id, label: p.label }));
+  if (step === 'phase') return st.phases.map(p => ({ id: p.id, label: p.label, color: p.color }));
   if (step === 'jeu') return rqJeux(rqPhase(c && c.phase)).map(j => ({ id: j.id, label: j.label }));
   if (step === 'res') return rqResIds(rqPhase(c && c.phase)).map(id => ({ id, label: lab(st.issues, id), cls: id === 'but' ? 'good' : id === 'but-enc' ? 'bad' : 'neutral' }));
   return sheetPlayers(S.m).map(p => ({ id: p.id, label: p.num || '?', sub: p.name }));
@@ -54,7 +54,7 @@ function rqGrid(step, opts, chosen) {
   const h = n <= 2 ? 96 : n <= 4 ? 80 : n <= 6 ? 72 : n <= 9 ? 64 : n <= 16 ? 58 : 48;
   const fs = n <= 4 ? 20 : n <= 9 ? 16 : n <= 16 ? 15 : 13;
   return `<div class="rq-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr));--rq-h:${h}px;--rq-fs:${fs}px">${opts.map(o =>
-    `<button type="button" class="rq-opt ${step === 'joueur' ? 'rq-pl' : ''} ${o.cls || ''}" aria-pressed="${chosen === o.id}" data-act="rq" data-s="${step}" data-id="${esc(o.id)}"><b>${esc(o.label)}</b>${o.sub ? `<span>${esc(o.sub)}</span>` : ''}</button>`).join('')}</div>`;
+    `<button type="button" class="rq-opt ${step === 'joueur' ? 'rq-pl' : ''} ${o.cls || ''} ${o.color ? 'rq-cat' : ''}" ${o.color ? `style="--cc:${esc(o.color)}"` : ''} aria-pressed="${chosen === o.id}" data-act="rq" data-s="${step}" data-id="${esc(o.id)}"><b>${esc(o.label)}</b>${o.sub ? `<span>${esc(o.sub)}</span>` : ''}</button>`).join('')}</div>`;
 }
 
 function rqHtml() {
@@ -65,7 +65,7 @@ function rqHtml() {
   let lower;
   if (!c) lower = `<p class="rq-idle">Appuie dès que tu repères la situation.<br>Les boutons suivants apparaîtront ici.</p>`;
   else {
-    const crumbs = ord.filter(s => rqFilled(s, c)).map(s => `<button type="button" class="rq-crumb" data-act="rqclear" data-s="${s}">${esc(rqValueLabel(s, c[s]))} ✕</button>`).join('');
+    const crumbs = ord.filter(s => rqFilled(s, c)).map(s => `<button type="button" class="rq-crumb" ${s === 'phase' ? `style="--cc:${esc(catColor(c.phase))}"` : ''} data-act="rqclear" data-s="${s}">${esc(rqValueLabel(s, c[s]))} ✕</button>`).join('');
     const nx = rqNext(c), n = ord.filter(s => rqFilled(s, c)).length + 1;
     const opts = nx ? rqOptions(nx, c) : [];
     lower = `<div class="rq-crumbs">${crumbs}</div>` + (nx ? `<p class="sect">${n} · ${STEP_TITLE[nx]}</p>` + (opts.length ? rqGrid(nx, opts, null) : `<p class="hint">Aucun choix disponible pour cette étape.</p>${nx === 'joueur' ? '<button class="btn" type="button" data-act="sheet">Composer la feuille</button>' : ''}`) : '');
@@ -110,7 +110,7 @@ function rqSave(forceInc) {
   const dur = V().duration;
   const p = {
     id: uid(), mark: c.t0, start: Math.max(0, c.t0 - cfg.before), end: isFinite(dur) ? Math.min(dur, c.t0 + cfg.after) : c.t0 + cfg.after,
-    phase: c.phase, jeu: c.jeu, issue: c.res, real: null, cause: null,
+    phase: c.phase, jeu: c.jeu, issue: c.res, real: null, cause: null, phaseColor: ph ? ph.color : null,
     side: ph ? ph.side : null, jeuKind: j ? j.kind : null,
     phaseLabel: L(st.phases, c.phase), jeuLabel: L(st.jeux, c.jeu), issueLabel: L(st.issues, c.res), realLabel: '', causeLabel: '',
     playerId: c.joueur || null, pnum: sh ? sh.num : (pl ? pl.num : ''), pname: pl ? pl.name : '',

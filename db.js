@@ -30,13 +30,17 @@ const DB = (() => {
 
 /* side : 'attaque' | 'defense' | 'both'
    kind (jeux) : 'combinaison' | 'enclenchement' | 'libre' | 'systeme' */
+/* palette proposée pour les catégories : lisible sur fond sombre */
+const PALETTE = ['#4DA3FF', '#FF6B6B', '#3DDC97', '#FF9F43', '#F5D547', '#B388FF', '#FF7EB6', '#2EE6D6'];
+const PHASE_COLORS = { 'att-placee': '#4DA3FF', 'def-placee': '#FF6B6B', 'montee': '#3DDC97', 'contre': '#FF9F43', 'sup': '#B388FF', 'inf': '#F5D547', 'repli': '#FF7EB6' };
+
 const DEFAULTS = {
   periodMinutes: 25,
   fps: 25,
-  saisie: { autoPause: false, recap: false, replay: true, replaySec: 5 },
+  saisie: { autoPause: false, recap: false, replay: true, replaySec: 5, fsShrink: true },
   /* marquage rapide : ordre des étapes, fenêtre autour du premier appui, résultats proposés (ids de « issues ») par côté */
-  rapide: { before: 10, after: 3, order: ['phase', 'jeu', 'res', 'joueur'], res: { attaque: ['but', 'pas-but'], defense: ['but-enc', 'pas-but'] } },
-  shortcuts: { next: ']', prev: '[', end5: 'e', end10: 'E', start5: 's', start10: 'S', replay: 'r', setIn: 'i', setOut: 'o' },
+  rapide: { before: 6, after: 3, order: ['phase', 'jeu', 'res', 'joueur'], res: { attaque: ['but', 'pas-but'], defense: ['but-enc', 'pas-but'] } },
+  shortcuts: { next: ']', prev: '[', end5: 'e', end10: 'E', start5: 's', start10: 'S', replay: 'r', setIn: 'i', setOut: 'o', fs: 'f' },
   actions: [
     { id: 'tir', label: 'Tir' },
     { id: 'but', label: 'But' },
@@ -47,13 +51,13 @@ const DEFAULTS = {
     { id: 'exclusion', label: 'Exclusion' }
   ],
   phases: [
-    { id: 'att-placee', label: 'Attaque placée', side: 'attaque', jeu: true },
-    { id: 'montee', label: 'Montée de balle', side: 'attaque', jeu: false },
-    { id: 'contre', label: 'Contre-attaque', side: 'attaque', jeu: false },
-    { id: 'sup', label: 'Supériorité numérique', side: 'attaque', jeu: true },
-    { id: 'inf', label: 'Infériorité numérique', side: 'attaque', jeu: true },
-    { id: 'repli', label: 'Repli', side: 'defense', jeu: false },
-    { id: 'def-placee', label: 'Défense placée', side: 'defense', jeu: true }
+    { id: 'att-placee', label: 'Attaque placée', side: 'attaque', jeu: true, color: '#4DA3FF' },
+    { id: 'montee', label: 'Montée de balle', side: 'attaque', jeu: false, color: '#3DDC97' },
+    { id: 'contre', label: 'Contre-attaque', side: 'attaque', jeu: false, color: '#FF9F43' },
+    { id: 'sup', label: 'Supériorité numérique', side: 'attaque', jeu: true, color: '#B388FF' },
+    { id: 'inf', label: 'Infériorité numérique', side: 'attaque', jeu: true, color: '#F5D547' },
+    { id: 'repli', label: 'Repli', side: 'defense', jeu: false, color: '#FF7EB6' },
+    { id: 'def-placee', label: 'Défense placée', side: 'defense', jeu: true, color: '#FF6B6B' }
   ],
   jeux: [
     { id: 'comb-a', label: 'Combinaison A', kind: 'combinaison', side: 'attaque' },

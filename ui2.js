@@ -74,6 +74,7 @@ function saisieCard() {
     ${row('autoPause', 'Pause automatique au toucher', 'Quand tu touches un joueur ou la possession, la vidéo se met en pause : tu saisis tranquillement sur la bonne image.')}
     ${row('recap', 'Récapitulatif avant de valider une possession', 'Une fenêtre résume la possession (phase, jeu, issue, actions liées) pour vérifier avant d’enregistrer.')}
     ${row('replay', 'Bouton « Rejouer »', 'Un bouton sous la vidéo revient de quelques secondes en arrière et relance la lecture.')}
+    ${row('fsShrink', 'Grand écran : réduire la vidéo quand je passe aux séquences', 'En grand écran, toucher une carte ou utiliser un raccourci de séquençage ramène la vidéo à sa taille normale, avec le bandeau complet. La lecture continue.')}
     <div class="list-row"><label for="rsec" style="flex:1">Durée du retour « Rejouer » (secondes)</label><input id="rsec" class="w-num" type="number" min="1" max="30" value="${k.replaySec}" data-sk="replaySec"></div></div>`;
 }
 function applyReplayBtn() { const b = $('#replaybtn'); if (b) { b.hidden = !S.settings.saisie.replay; b.textContent = '↺ ' + S.settings.saisie.replaySec + ' s'; } }
@@ -198,3 +199,18 @@ function dlgRecap() {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'lg-pw') doLogin(); });
+
+/* ---------- couleur d'une catégorie ---------- */
+function dlgColor(i) {
+  const p = S.settings.phases[i]; if (!p) return;
+  openDlg(`<h2>Couleur : ${esc(p.label)}</h2>
+    <div class="pal">${PALETTE.map(c => `<button type="button" class="pal-sw ${c === p.color ? 'on' : ''}" style="background:${c}" data-act="setcolor" data-i="${i}" data-c="${c}" aria-label="Couleur ${c}"></button>`).join('')}</div>
+    <div class="list-row" style="margin-top:14px"><label for="cc" style="flex:1">Ou une couleur libre</label><input id="cc" type="color" value="${esc(p.color || '#4DA3FF')}" style="width:64px;min-height:44px;padding:2px">
+      <button class="btn" type="button" data-act="setcolor" data-i="${i}" data-c="custom">Utiliser</button></div>
+    <div class="btnrow" style="margin-top:10px"><button class="btn" type="button" data-act="closedlg">Fermer</button></div>`);
+}
+function setPhaseColor(i, c) {
+  const p = S.settings.phases[i]; if (!p) return;
+  if (c === 'custom') c = $('#cc').value;
+  p.color = c; saveSettings(); closeDlg(); renderSettings();
+}

@@ -2,48 +2,87 @@
 /* Bandeau de séquences (bas de l'écran) et raccourcis clavier.
    Les ajustements de début et de fin sont des décalages : la saisie d'origine n'est jamais modifiée. */
 const SC_LABELS = {
-  next: 'Séquence suivante', prev: 'Séquence précédente', end5: 'Fin : +5 s', end10: 'Fin : +10 s',
-  start5: 'Début : −5 s', start10: 'Début : −10 s', replay: 'Rejouer la séquence', setIn: 'Début ici (image actuelle)', setOut: 'Fin ici (image actuelle)'
+  next: 'Séquence suivante', prev: 'Séquence précédente', end5: 'Finir 5 s plus tard', end10: 'Finir 10 s plus tard',
+  start5: 'Commencer 5 s plus tôt', start10: 'Commencer 10 s plus tôt', replay: 'Rejouer la séquence', setIn: 'Début ici (image actuelle)', setOut: 'Fin ici (image actuelle)', fs: 'Grand écran / réduire'
 };
 const seqWin = p => ({ a: Math.max(0, p.start - (p.offS || 0)), b: p.end + (p.offE || 0) });
 const seqList = () => (S.m ? S.m.possessions : []);
+const catColor = (id, snap) => { const p = id && byId(S.settings.phases, id); return (p && p.color) || snap || '#9AA8B6'; };
+const seqTitle = p => [p.phase ? lab(S.settings.phases, p.phase, p.phaseLabel) : 'Situation', p.jeu ? lab(S.settings.jeux, p.jeu, p.jeuLabel) : ''].filter(Boolean).join(' · ');
+const seqInfo = p => {
+  const w = seqWin(p), res = p.issue ? lab(S.settings.issues, p.issue, p.issueLabel) : '';
+  return `<span class="mono">${fmt(w.a)} → ${fmt(w.b)} · ${Math.round(w.b - w.a)} s</span> · ${p.inc ? '<span class="seq-tag">à compléter</span>' : esc(res)}${p.pnum || p.pname ? ' · ' + esc(p.pnum ? '#' + p.pnum : p.pname) : ''}`;
+};
 
 function renderBanner() {
   const bar = document.getElementById('seqbar'); if (!bar) return;
-  if (S.view !== 'match' || !S.m) { bar.hidden = true; return; }
+  if (S.view !== 'match' || !S.m || S.fs) { bar.hidden = true; renderFsCol(); return; }
   bar.hidden = false;
-  const list = seqList(), st = S.settings, open = S.seqOpen !== false;
-  const head = `<div class="seq-h"><b>Séquences · ${list.length}</b><span class="muted seq-hint">${list.some(p => p.inc) ? 'orange = à compléter' : 'touche une carte pour la revoir'}</span><span class="grow"></span>
-    <button class="btn small" type="button" data-act="seqtoggle" aria-label="${open ? 'Réduire' : 'Agrandir'}">${open ? '▾' : '▴'}</button></div>`;
+  const list = seqList(), open = S.seqOpen !== false, sel = list.find(p => p.id === S.seqSel);
+  const head = `<div class="seq-h"><b>Séquences · ${list.length}</b><span class="muted seq-hint">${list.some(p => p.inc) ? 'bord orange = à compléter' : 'touche une carte pour la revoir'}</span><span class="grow"></span>
+    <button class="btn small" type="button" data-act="fs">Plein écran (F)</button>
+    <button class="btn small" type="button" data-act="seqtoggle" aria-label="${open ? 'Réduire le bandeau' : 'Agrandir le bandeau'}">${open ? '▾' : '▴'}</button></div>`;
   if (!open) { bar.innerHTML = head; return; }
-  const cards = list.map(p => {
-    const w = seqWin(p), sel = S.seqSel === p.id, res = p.issue ? lab(st.issues, p.issue, p.issueLabel) : '';
-    const title = [p.phase ? lab(st.phases, p.phase, p.phaseLabel) : 'Situation', p.jeu ? lab(st.jeux, p.jeu, p.jeuLabel) : ''].filter(Boolean).join(' · ');
-    const mod = (p.offS || p.offE) ? ' · ajustée' : '';
-    return `<div class="seq-card ${sel ? 'sel' : ''} ${p.inc ? 'inc' : ''}" data-act="seqplay" data-id="${p.id}" role="button" tabindex="0">
-      <div class="seq-t"><b>${esc(title)}</b></div>
-      <div class="seq-m"><span class="mono">${fmt(w.a)} → ${fmt(w.b)} · ${Math.round(w.b - w.a)} s${mod}</span> · ${p.inc ? '<span class="seq-tag">à compléter</span>' : esc(res)}${p.pnum || p.pname ? ' · ' + esc(p.pnum ? '#' + p.pnum : p.pname) : ''}</div>
-      <div class="seq-b"><span>Début</span><button class="btn small" type="button" data-act="seqoff" data-id="${p.id}" data-w="s" data-d="10">−10 s</button><button class="btn small" type="button" data-act="seqoff" data-id="${p.id}" data-w="s" data-d="5">−5 s</button>
-        <span>Fin</span><button class="btn small" type="button" data-act="seqoff" data-id="${p.id}" data-w="e" data-d="5">+5 s</button><button class="btn small" type="button" data-act="seqoff" data-id="${p.id}" data-w="e" data-d="10">+10 s</button>
-        ${(p.offS || p.offE) ? `<button class="btn small" type="button" data-act="seqreset" data-id="${p.id}" aria-label="Revenir à la fenêtre d’origine">↺</button>` : ''}</div></div>`;
-  }).join('');
-  bar.innerHTML = head + `<div class="seq-row">${cards || '<p class="hint" style="margin:6px 0">Aucune séquence. Les situations que tu marques apparaissent ici.</p>'}</div>`;
-  const sel = bar.querySelector('.seq-card.sel'); if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  let editor = '<p class="seq-help">Touche une carte pour la revoir, puis règle son début et sa fin.</p>';
+  if (sel) {
+    const w = seqWin(sel), grp = (which, label, t) => `<div class="seq-eg"><div class="seq-et"><b>${label}</b><span class="mono">${fmt(t)}</span></div>
+      <div class="seq-eb">${[-10, -5, 5, 10].map(d => `<button class="btn small" type="button" data-act="seqshift" data-id="${sel.id}" data-w="${which}" data-d="${d}">${d > 0 ? '+' : '−'}${Math.abs(d)} s</button>`).join('')}
+      <button class="btn small" type="button" data-act="seqhere" data-id="${sel.id}" data-w="${which}">Ici</button></div></div>`;
+    editor = `<div class="seq-ed" style="--cc:${catColor(sel.phase, sel.phaseColor)}"><div class="seq-en"><b>${esc(seqTitle(sel))}</b><span class="muted">${Math.round(w.b - w.a)} s</span></div>
+      ${grp('s', 'Début', w.a)}${grp('e', 'Fin', w.b)}
+      <div class="seq-ea"><button class="btn small" type="button" data-act="seqplay" data-id="${sel.id}">▶ Revoir</button>${(sel.offS || sel.offE) ? `<button class="btn small" type="button" data-act="seqreset" data-id="${sel.id}">↺ Origine</button>` : ''}</div></div>
+      <p class="seq-help"><b>−</b> = plus tôt, <b>+</b> = plus tard. « Ici » = l’image affichée en ce moment. Ta saisie d’origine n’est jamais modifiée.</p>`;
+  }
+  const cards = list.map(p => `<div class="seq-card ${p.id === S.seqSel ? 'sel' : ''} ${p.inc ? 'inc' : ''}" style="--cc:${catColor(p.phase, p.phaseColor)}" data-act="seqplay" data-id="${p.id}" role="button" tabindex="0">
+      <div class="seq-t"><b>${esc(seqTitle(p))}</b></div><div class="seq-m">${seqInfo(p)}${(p.offS || p.offE) ? ' · ajustée' : ''}</div></div>`).join('');
+  bar.innerHTML = head + editor + `<div class="seq-row">${cards || '<p class="hint" style="margin:6px 0">Aucune séquence. Les situations que tu marques apparaissent ici.</p>'}</div>`;
+  const c = bar.querySelector('.seq-card.sel'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
-function seqPlay(id) {
+/* grand écran : la vidéo remplit la fenêtre, une colonne montre les dernières séquences */
+function setFs(on) {
+  S.fs = !!on && S.view === 'match';
+  const m = document.getElementById('match'); if (m) m.classList.toggle('fs', S.fs);
+  document.body.classList.toggle('fs', S.fs);
+  const b = document.getElementById('fsbtn'); if (b) b.textContent = S.fs ? 'Réduire (F)' : 'Plein écran (F)';
+  renderFsCol(); if (S.m) renderBanner();
+}
+function renderFsCol() {
+  const col = document.getElementById('fscol'); if (!col) return;
+  if (!S.fs || !S.m) { col.hidden = true; return; }
+  col.hidden = false;
+  const list = [...seqList()].sort((a, b) => (b.wall || 0) - (a.wall || 0)).slice(0, 6);
+  col.innerHTML = `<div class="sect-h" style="margin:0">Dernières séquences</div>
+    ${list.map(p => `<button type="button" class="fs-card" style="--cc:${catColor(p.phase, p.phaseColor)}" data-act="fscard" data-id="${p.id}"><b>${esc(seqTitle(p))}</b><span>${seqInfo(p)}</span></button>`).join('') || '<p class="hint">Aucune séquence pour l’instant.</p>'}
+    <button class="btn" type="button" data-act="fsall">Toutes les séquences</button>`;
+}
+
+function seqPlay(id, from) {
   const p = seqList().find(x => x.id === id); if (!p) return;
   S.seqSel = id;
-  if (S.videoReady) { const w = seqWin(p), v = V(); v.currentTime = w.a; S.playWin = { id, b: w.b }; playV(); }
+  if (S.videoReady) { const w = seqWin(p), v = V(); v.currentTime = from != null ? Math.min(Math.max(w.a, from), w.b - 0.5) : w.a; S.playWin = { id, b: w.b }; playV(); }
   else toast('Choisis d’abord la vidéo du match.');
-  renderBanner();
+  renderBanner(); renderFsCol();
 }
-function seqOff(id, which, d) {
+/* d > 0 : l'instant se décale plus tard ; d < 0 : plus tôt */
+function seqShift(id, which, d) {
   const p = seqList().find(x => x.id === id); if (!p) return;
-  if (which === 's') p.offS = Math.max(-(p.end - p.start - 1), (p.offS || 0) + d); else p.offE = Math.max(-(p.end - p.start - 1), (p.offE || 0) + d);
-  p.updated = Date.now(); saveMatch(); renderJournal(); renderTimeline(); seqPlay(id);
+  const w = seqWin(p), dur = S.videoReady && isFinite(V().duration) ? V().duration : Infinity;
+  if (which === 's') { const t = Math.min(Math.max(0, w.a + d), w.b - 1); p.offS = p.start - t; }
+  else { const t = Math.max(Math.min(dur, w.b + d), w.a + 1); p.offE = t - p.end; }
+  p.updated = Date.now(); saveMatch(); renderJournal(); renderTimeline();
+  const n = seqWin(p); seqPlay(id, which === 's' ? n.a : n.b - 5);
 }
-function seqReset(id) { const p = seqList().find(x => x.id === id); if (!p) return; p.offS = 0; p.offE = 0; saveMatch(); renderBanner(); }
+function seqHere(id, which) {
+  const p = seqList().find(x => x.id === id); if (!p) return;
+  if (!S.videoReady) { toast('Choisis d’abord la vidéo du match.'); return; }
+  const t = V().currentTime, w = seqWin(p);
+  if (which === 's') { if (t > w.b - 1) { toast('Le début doit être avant la fin.'); return; } p.offS = p.start - t; }
+  else { if (t < w.a + 1) { toast('La fin doit être après le début.'); return; } p.offE = t - p.end; }
+  saveMatch(); renderJournal(); renderTimeline(); renderBanner();
+  toast((which === 's' ? 'Début' : 'Fin') + ' placé à ' + fmtL(t));
+}
+function seqReset(id) { const p = seqList().find(x => x.id === id); if (!p) return; p.offS = 0; p.offE = 0; saveMatch(); renderJournal(); renderTimeline(); seqPlay(id); }
 function seqSelect(dir) {
   const l = seqList(); if (!l.length) return;
   let i = l.findIndex(x => x.id === S.seqSel); i = i < 0 ? (dir > 0 ? 0 : l.length - 1) : Math.min(l.length - 1, Math.max(0, i + dir));
@@ -61,18 +100,21 @@ document.addEventListener('keydown', e => {
   if (S.view !== 'match' || !S.m) return;
   const tag = (e.target.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag) || $('#dlg').open || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Escape' && S.fs) { setFs(false); return; }
   const sc = S.settings.shortcuts, act = Object.keys(sc).find(k => sc[k] === e.key);
   if (!act) return;
+  if (act === 'fs') { e.preventDefault(); setFs(!S.fs); return; }
   const p = seqList().find(x => x.id === S.seqSel), v = V();
+  if (S.fs && S.settings.saisie.fsShrink && (p || act === 'next' || act === 'prev')) setFs(false);
   if (act === 'next') { e.preventDefault(); seqSelect(1); return; }
   if (act === 'prev') { e.preventDefault(); seqSelect(-1); return; }
   if (act === 'replay') { e.preventDefault(); if (p) seqPlay(p.id); else if (S.videoReady) { v.currentTime = Math.max(0, v.currentTime - S.settings.saisie.replaySec); playV(); } return; }
   if (!p) { toast('Choisis d’abord une séquence (touche ] ou clic sur une carte).'); return; }
   e.preventDefault();
-  if (act === 'end5') seqOff(p.id, 'e', 5);
-  else if (act === 'end10') seqOff(p.id, 'e', 10);
-  else if (act === 'start5') seqOff(p.id, 's', 5);
-  else if (act === 'start10') seqOff(p.id, 's', 10);
+  if (act === 'end5') seqShift(p.id, 'e', 5);
+  else if (act === 'end10') seqShift(p.id, 'e', 10);
+  else if (act === 'start5') seqShift(p.id, 's', -5);
+  else if (act === 'start10') seqShift(p.id, 's', -10);
   else if (act === 'setIn' && S.videoReady) { p.offS = p.start - v.currentTime; saveMatch(); renderJournal(); renderTimeline(); toast('Début de séquence : ' + fmtL(v.currentTime)); }
   else if (act === 'setOut' && S.videoReady) { p.offE = v.currentTime - p.end; saveMatch(); renderJournal(); renderTimeline(); toast('Fin de séquence : ' + fmtL(v.currentTime)); }
 });
