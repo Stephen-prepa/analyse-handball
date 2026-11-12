@@ -36,7 +36,8 @@ const PHASE_KEYS = { 'att-placee': 'a', 'def-placee': 'd', 'montee': 'm', 'contr
 const PHASE_COLORS = { 'att-placee': '#4DA3FF', 'def-placee': '#FF6B6B', 'montee': '#3DDC97', 'contre': '#FF9F43', 'sup': '#B388FF', 'inf': '#F5D547', 'repli': '#FF7EB6' };
 
 const DEFAULTS = {
-  periodMinutes: 25,
+  periods: 3,
+  periodMinutes: 18,
   fps: 25,
   saisie: { autoPause: false, recap: false, replay: true, replaySec: 5, fsShrink: true, fsReturn: true },
   /* marquage rapide : ordre des étapes, fenêtre autour du premier appui, résultats proposés (ids de « issues ») par côté */

@@ -21,11 +21,13 @@ const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
 const V = () => $('#video');
 const playV = () => { const r = V().play(); if (r && r.catch) r.catch(() => { }); };
 
-const MARK_LABELS = {
-  p1s: 'Début 1re période', p1e: 'Fin 1re période',
-  p2s: 'Début 2e période', p2e: 'Fin 2e période',
-  to: 'Temps mort', rs: 'Reprise'
-};
+const ord = n => n === 1 ? '1re' : n + 'e';
+const MARK_LABELS = { to: 'Temps mort', rs: 'Reprise' };
+for (let n = 1; n <= 6; n++) { MARK_LABELS['p' + n + 's'] = 'Début ' + ord(n) + ' période'; MARK_LABELS['p' + n + 'e'] = 'Fin ' + ord(n) + ' période'; }
+const nPeriods = () => Math.min(6, Math.max(1, Math.round(Number(S.settings.periods) || 2)));
+/* nombre de périodes à afficher pour un match : réglage, ou plus si le match a déjà des repères au-delà */
+const periodsOf = m => { let n = nPeriods(); m.marks.forEach(x => { const k = /^p(\d)[se]$/.exec(x.type); if (k) n = Math.max(n, Number(k[1])); }); return n; };
+const markFlag = type => { const k = /^p(\d)([se])$/.exec(type); return k ? (k[2] === 's' ? 'D' : 'F') + k[1] : type === 'to' ? 'TM' : 'R'; };
 
 /* ---------- sauvegarde ---------- */
 const warnStore = () => toast('Sauvegarde impossible sur cet appareil');
@@ -60,7 +62,7 @@ function playerLabel(tag) {
 const marksOf = (m, type) => m.marks.filter(x => x.type === type).sort((a, b) => a.t - b.t);
 
 function rawGame(m, period, start, t) {
-  const base = period === 2 ? S.settings.periodMinutes * 60 : 0;
+  const base = (period - 1) * S.settings.periodMinutes * 60;
   const tos = marksOf(m, 'to'), rs = marksOf(m, 'rs');
   let stopped = 0;
   for (const to of tos) {
@@ -72,12 +74,13 @@ function rawGame(m, period, start, t) {
   return base + (t - start) - stopped;
 }
 function gameInfo(m, t) {
-  const s1 = marksOf(m, 'p1s')[0], s2 = marksOf(m, 'p2s')[0];
-  let period, start;
-  if (s2 && t >= s2.t) { period = 2; start = s2.t; }
-  else if (s1 && t >= s1.t) { period = 1; start = s1.t; }
-  else return null;
-  const pe = marksOf(m, period === 1 ? 'p1e' : 'p2e')[0];
+  let period = 0, start = 0;
+  for (let n = periodsOf(m); n >= 1; n--) {
+    const sn = marksOf(m, 'p' + n + 's')[0];
+    if (sn && t >= sn.t) { period = n; start = sn.t; break; }
+  }
+  if (!period) return null;
+  const pe = marksOf(m, 'p' + period + 'e')[0];
   const tt = pe && t > pe.t ? pe.t : t;
   return { period, t: Math.max(0, rawGame(m, period, start, tt)) };
 }
@@ -160,12 +163,16 @@ function renderMarks() {
     return `<button class="mbtn ${set ? 'set' : ''}" type="button" data-act="mark" data-type="${t}"><b>${MARK_LABELS[t]}</b><span>${sub}</span></button>`;
   };
   const all = [...m.marks].sort((a, b) => a.t - b.t);
-  $('#marks').innerHTML = `
-    <div class="sect-h">Repères de synchro · coups de sifflet</div>
-    <div class="mgrid">${btn('p1s')}${btn('to')}${btn('p2s')}${btn('p1e')}${btn('rs')}${btn('p2e')}</div>
+  const open = !!S.marksBox;
+  const pills = Array.from({ length: periodsOf(m) }, (_, i) => ['s', 'e'].map(k => { const ty = 'p' + (i + 1) + k; return `<span class="mpill ${marksOf(m, ty).length ? 'set' : ''}">${markFlag(ty)}</span>`; }).join('')).join('') + `<span class="mpill ${marksOf(m, 'to').length ? 'set' : ''}">TM${marksOf(m, 'to').length ? ' ×' + marksOf(m, 'to').length : ''}</span>`;
+  const mk = $('#marks'); mk.classList.toggle('compact', !open);
+  mk.innerHTML = `
+    <button class="mtog" type="button" data-act="marksbox" aria-expanded="${open}"><span class="sect-h">Repères de synchro</span><span class="mchips">${pills}</span><span class="chev">${open ? '▴' : '▾'}</span></button>
+    ${open ? `<div class="mgrid pgrid" style="margin-top:8px">${Array.from({ length: periodsOf(m) }, (_, i) => btn('p' + (i + 1) + 's') + btn('p' + (i + 1) + 'e')).join('')}</div>
+    <div class="mgrid pgrid" style="margin-top:6px">${btn('to')}${btn('rs')}</div>
     ${all.length ? `<details class="mdet"${S.marksOpen ? ' open' : ''}><summary>Voir ou supprimer les repères (${all.length})</summary><div class="mlist">${all.map(x => `
       <span class="mchip"><button type="button" data-act="goto" data-t="${x.t}">${MARK_LABELS[x.type]} · ${fmtL(x.t)}</button>
-      <button class="x" type="button" data-act="delmark" data-id="${x.id}" aria-label="Supprimer le repère">✕</button></span>`).join('')}</div></details>` : ''}`;
+      <button class="x" type="button" data-act="delmark" data-id="${x.id}" aria-label="Supprimer le repère">✕</button></span>`).join('')}</div></details>` : ''}` : ''}`;
 }
 
 function renderTimeline() {
@@ -175,7 +182,7 @@ function renderTimeline() {
     return;
   }
   const pct = t => (Math.min(Math.max(t / d, 0), 1) * 100).toFixed(3);
-  const marks = m.marks.map(x => `<div class="flag" style="left:${pct(x.t)}%"><i>${({ p1s: 'D1', p1e: 'F1', p2s: 'D2', p2e: 'F2', to: 'TM', rs: 'R' })[x.type]}</i></div>`).join('');
+  const marks = m.marks.map(x => `<div class="flag" style="left:${pct(x.t)}%"><i>${markFlag(x.type)}</i></div>`).join('');
   const segs = m.possessions.map(p => {
     const j = byId(S.settings.jeux, p.jeu);
     const kind = (j && j.kind) || p.jeuKind || 'libre';
@@ -334,23 +341,27 @@ function renderSettings() {
   const opts = (o, v) => Object.entries(o).map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${l}</option>`).join('');
   $('#settings').innerHTML = `<div class="page">
     <div class="card"><div class="card-h"><h2>Match</h2></div>
+      <div class="list-row"><label for="np" style="flex:1">Nombre de périodes</label><input id="np" class="w-num" type="number" min="1" max="6" value="${st.periods}" data-set="periods"></div>
       <div class="list-row"><label for="pm" style="flex:1">Durée d’une période (minutes)</label><input id="pm" class="w-num" type="number" min="1" max="60" value="${st.periodMinutes}" data-set="periodMinutes"></div>
       <div class="list-row"><label for="fps" style="flex:1">Images par seconde de la vidéo</label><input id="fps" class="w-num" type="number" min="10" max="60" value="${st.fps}" data-set="fps"></div>
     </div>
     ${compteCard()}${saisieCard()}${rapideCard()}${shortcutsCard()}
     ${LISTS.map(L => `<div class="card"><div class="card-h"><h2>${L.title}</h2></div>
+      <p class="hint">Glisse la poignée ⠿ pour changer l’ordre${L.key === 'phases' ? ' des cartes' : ''}.</p>
       ${L.key === 'phases' ? '<p class="hint">Pastille = couleur de la carte. « Touche » : clique dans la case, puis appuie sur la lettre voulue au clavier (Retour arrière pour la retirer). Utile avec un clavier (Mac) ; au doigt, les cartes suffisent.</p>' : ''}
-      ${st[L.key].map((it, i) => `<div class="list-row ${L.key === 'phases' ? 'phase-row' : ''}">
+      ${st[L.key].map((it, i) => `<div class="list-row ${L.key === 'phases' ? 'phase-row' : ''}" data-rowlist="${L.key}" data-rowi="${i}">
+        <button class="grip" type="button" data-grip="${L.key}" data-i="${i}" aria-label="Déplacer : glisser vers le haut ou le bas" title="Glisser pour changer l’ordre">⠿</button>
         <input type="text" value="${esc(it.label)}" data-set="${L.key}.${i}.label" aria-label="Nom">
         ${L.cols.includes('kind') ? `<select data-set="${L.key}.${i}.kind" aria-label="Type">${opts(KINDS, it.kind)}</select>` : ''}
         ${L.cols.includes('ask') ? `<button class="swatch" type="button" data-act="colorpick" data-i="${i}" style="background:${esc(it.color || '#9AA8B6')}" aria-label="Couleur de ${esc(it.label)}"></button>` : ''}
         ${L.cols.includes('side') ? `<select data-set="${L.key}.${i}.side" aria-label="Côté">${opts(SIDES, it.side)}</select>` : ''}
         ${L.cols.includes('ask') ? `<span class="key-lab">Touche <input class="w-num key-in" type="text" readonly value="${it.key ? esc(it.key.toUpperCase()) : ''}" placeholder="aucune" data-pkey="${i}" aria-label="Touche du clavier pour ${esc(it.label)}"></span>` : ''}
         ${L.cols.includes('ask') ? `<label class="chk-i"><input type="checkbox" data-set="${L.key}.${i}.jeu" ${it.jeu !== false ? 'checked' : ''}> demande un jeu</label>` : ''}
-        <button class="btn small" type="button" data-act="rowmove" data-list="${L.key}" data-i="${i}" data-d="-1" aria-label="Monter">▲</button>
-        <button class="btn small" type="button" data-act="rowmove" data-list="${L.key}" data-i="${i}" data-d="1" aria-label="Descendre">▼</button>
         <button class="btn danger small" type="button" data-act="delrow" data-list="${L.key}" data-i="${i}" aria-label="Supprimer">✕</button></div>`).join('')}
       <button class="btn" type="button" data-act="addrow" data-list="${L.key}">Ajouter</button></div>`).join('')}
+    <div class="card"><div class="card-h"><h2>Tailles des panneaux</h2></div>
+      <p class="hint">Dans l’écran du match, glisse les poignées entre la vidéo et le panneau de droite, ou sous la vidéo, pour changer les tailles. Double-appui sur une poignée : taille d’origine.</p>
+      <button class="btn" type="button" data-act="resetlayout">Remettre les tailles par défaut</button></div>
     <div class="card"><div class="card-h"><h2>Réinitialiser</h2></div>
       <p class="hint">Remet toutes les listes ci-dessus aux valeurs de départ. Les matchs déjà saisis ne changent pas.</p>
       <button class="btn danger" type="button" data-act="resetlists">Remettre les listes par défaut</button></div>
@@ -620,6 +631,7 @@ document.addEventListener('click', e => {
     case 'seqreset': seqReset(d.id); break;
     case 'seqtoggle': S.seqOpen = S.seqOpen === false; renderBanner(); break;
     case 'scdefault': S.settings.shortcuts = clone(DEFAULTS.shortcuts); saveSettings(); renderSettings(); break;
+    case 'marksbox': S.marksBox = !S.marksBox; renderMarks(); break;
     case 'rowmove': if (moveInArray(S.settings[d.list], Number(d.i), Number(d.d))) { saveSettings(); renderSettings(); } break;
     case 'stepmove': {
       const o = rqOrder(), i = o.indexOf(d.s), nd = Number(d.d), j = i + nd;
@@ -721,9 +733,10 @@ document.addEventListener('click', e => {
       S.settings[L].push(row); saveSettings(); renderSettings(); break;
     }
     case 'delrow': S.settings[d.list].splice(Number(d.i), 1); saveSettings(); renderSettings(); break;
+    case 'resetlayout': if (window.Layout) Layout.reset(); toast('Tailles remises par défaut.'); break;
     case 'resetlists':
       if (confirm('Remettre toutes les listes aux valeurs par défaut ?')) {
-        const keep = { periodMinutes: S.settings.periodMinutes, fps: S.settings.fps, saisie: S.settings.saisie, shortcuts: S.settings.shortcuts };
+        const keep = { periods: S.settings.periods, periodMinutes: S.settings.periodMinutes, fps: S.settings.fps, saisie: S.settings.saisie, shortcuts: S.settings.shortcuts };
         S.settings = Object.assign(clone(DEFAULTS), keep); saveSettings(); renderSettings();
       }
       break;
@@ -804,6 +817,7 @@ function bindStatic() {
 /* met à niveau les réglages enregistrés : ajoute ce qui manque sans toucher à ce que tu as modifié */
 function migrateSettings() {
   const st = S.settings, D = DEFAULTS;
+  if (st.periods === undefined) { st.periods = D.periods; if (st.periodMinutes === 25) st.periodMinutes = D.periodMinutes; }
   st.saisie = Object.assign({}, D.saisie, st.saisie || {});
   st.shortcuts = Object.assign({}, D.shortcuts, st.shortcuts || {});
   st.rapide = Object.assign(clone(D.rapide), st.rapide || {});
