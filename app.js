@@ -14,11 +14,12 @@ const fmtL = t => { if (t == null || isNaN(t)) return '--:--:--'; const s = Math
 const fmtD = d => { const [y, m, j] = String(d).split('-'); return j && m ? `${j}/${m}/${y}` : d; };
 
 const S = {
-  view: 'home', settings: null, roster: [], matches: [], m: null, prefsUpdated: 0, sf: { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '' },
+  view: 'home', settings: null, roster: [], matches: [], m: null, prefsUpdated: 0, rq: { cur: null, undoId: null, undoUntil: 0, lastSecs: null }, seqSel: null, seqOpen: true, playWin: null, sf: { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '' },
   player: null, lastTag: null, videoReady: false, url: null, speedIdx: 2
 };
 const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
 const V = () => $('#video');
+const playV = () => { const r = V().play(); if (r && r.catch) r.catch(() => { }); };
 
 const MARK_LABELS = {
   p1s: 'Début 1re période', p1e: 'Fin 1re période',
@@ -92,6 +93,7 @@ function setView(v) {
   if (v === 'settings') renderSettings();
   if (v === 'stats') renderStats();
   if (v === 'match') { renderMatch(); }
+  renderBanner();
 }
 
 function renderBar() {
@@ -215,17 +217,18 @@ function renderJournal() {
     const p = it.o;
     const ph = byId(st.phases, p.phase);
     const def = (ph && ph.side === 'defense') || p.side === 'defense';
-    const parts = [lab(st.phases, p.phase, p.phaseLabel), lab(st.jeux, p.jeu, p.jeuLabel), lab(st.issues, p.issue, p.issueLabel)];
-    const sub = [p.real ? lab(st.realisations, p.real, p.realLabel) : '', p.cause ? lab(st.causes, p.cause, p.causeLabel) : ''].filter(Boolean).join(' · ');
+    const parts = [p.phase ? lab(st.phases, p.phase, p.phaseLabel) : 'Situation', p.jeu ? lab(st.jeux, p.jeu, p.jeuLabel) : '', p.issue ? lab(st.issues, p.issue, p.issueLabel) : ''].filter(Boolean);
+    const sub = [p.inc ? 'à compléter' : '', p.playerId || p.pname ? (p.pnum ? '#' + p.pnum + ' ' : '') + (p.pname || '') : '', p.real ? lab(st.realisations, p.real, p.realLabel) : '', p.cause ? lab(st.causes, p.cause, p.causeLabel) : ''].filter(Boolean).join(' · ');
     return `<div class="jr poss ${def ? 'def' : ''}" data-act="goto" data-t="${Math.max(0, p.start - 2)}">
       <span class="g">${gameLabel(m, p.start)}</span><span class="v mono">${fmtL(p.start)}</span>
       <span class="t">Possession · ${parts.map(esc).join(' · ')}<small>${esc(sub)}${sub ? ' · ' : ''}${Math.round(p.end - p.start)} s de vidéo</small></span>
-      <span class="bt"><button class="btn small" type="button" data-act="editposs" data-id="${p.id}">Modifier</button>
+      <span class="bt">${p.inc ? `<button class="btn small" type="button" data-act="rqresume" data-id="${p.id}">Compléter</button>` : ''}<button class="btn small" type="button" data-act="editposs" data-id="${p.id}">Modifier</button>
       <button class="btn small danger" type="button" data-act="delposs" data-id="${p.id}" aria-label="Supprimer">✕</button></span></div>`;
   }).join('');
   $('#journal').innerHTML = `<div class="jh"><div class="sect-h" style="margin:0">Journal · ${m.tags.length} actions · ${m.possessions.length} possessions</div>
     ${S.lastTag ? '<button class="btn small" type="button" data-act="undo">Annuler la dernière action</button>' : ''}</div>
     ${rows || '<p class="hint" style="margin:6px 0 0">Rien de saisi pour l’instant.</p>'}`;
+  renderBanner();
 }
 
 function chips(list, sel, f) {
@@ -238,8 +241,7 @@ function renderPanel() {
   const side = ph ? ph.side : null;
   const fil = l => l.filter(x => x.side === 'both' || x.side === side);
   const players = sheetPlayers(m);
-  const compact = window.innerHeight < 860 && window.innerWidth > 900;
-  S.compact = compact;
+  S.compact = window.innerHeight < 860 && window.innerWidth > 900;
   const secPoss = `
   <section class="card">
     <div class="card-h"><h2>Possession</h2>
@@ -269,12 +271,10 @@ function renderPanel() {
     <h3>Action · enregistrée au temps vidéo affiché</h3>
     <div class="chips c4">${st.actions.map(a => `<button type="button" class="chip" data-act="tag" data-id="${esc(a.id)}">${esc(a.label)}</button>`).join('')}</div>
   </section>`;
-  if (!compact) { $('#panel').innerHTML = secPoss + secAct; return; }
-  const tab = S.tab || 'act';
-  $('#panel').innerHTML = `<div class="tabs" role="tablist">
-      <button type="button" role="tab" aria-selected="${tab === 'act'}" data-act="tab" data-id="act">Actions</button>
-      <button type="button" role="tab" aria-selected="${tab === 'poss'}" data-act="tab" data-id="poss">Possession${m.open ? ' · ouverte' : ''}</button>
-    </div>` + (tab === 'act' ? secAct : secPoss);
+  const tab = S.tab || 'rapide';
+  const tb = (id, label) => `<button type="button" role="tab" aria-selected="${tab === id}" data-act="tab" data-id="${id}">${label}</button>`;
+  $('#panel').innerHTML = `<div class="tabs" role="tablist">${tb('rapide', 'Marquage rapide')}${tb('act', 'Actions')}${tb('poss', 'Possession' + (m.open ? ' · ouverte' : ''))}</div>` +
+    (tab === 'rapide' ? rqHtml() : tab === 'act' ? secAct : secPoss);
 }
 
 /* ----- temps réel (lecteur) ----- */
@@ -295,6 +295,7 @@ function updateTime(t) {
 }
 function tick() {
   if (S.view === 'match') {
+    rqTick(); seqTick();
     const t = V().currentTime || 0;
     if (t !== lastT) { lastT = t; updateTime(t); }
   }
@@ -319,7 +320,7 @@ function renderRoster() {
 /* ----- réglages ----- */
 const LISTS = [
   { key: 'actions', title: 'Actions', cols: ['label'] },
-  { key: 'phases', title: 'Phases', cols: ['label', 'side'] },
+  { key: 'phases', title: 'Catégories du marquage rapide (phases)', cols: ['label', 'side', 'ask'] },
   { key: 'jeux', title: 'Jeux : combinaisons, enclenchements, systèmes défensifs', cols: ['label', 'kind', 'side'] },
   { key: 'issues', title: 'Issues de possession', cols: ['label', 'side'] },
   { key: 'realisations', title: 'Jeu réalisé ?', cols: ['label'] },
@@ -336,12 +337,15 @@ function renderSettings() {
       <div class="list-row"><label for="pm" style="flex:1">Durée d’une période (minutes)</label><input id="pm" class="w-num" type="number" min="1" max="60" value="${st.periodMinutes}" data-set="periodMinutes"></div>
       <div class="list-row"><label for="fps" style="flex:1">Images par seconde de la vidéo</label><input id="fps" class="w-num" type="number" min="10" max="60" value="${st.fps}" data-set="fps"></div>
     </div>
-    ${compteCard()}${saisieCard()}
+    ${compteCard()}${saisieCard()}${rapideCard()}${shortcutsCard()}
     ${LISTS.map(L => `<div class="card"><div class="card-h"><h2>${L.title}</h2></div>
       ${st[L.key].map((it, i) => `<div class="list-row">
         <input type="text" value="${esc(it.label)}" data-set="${L.key}.${i}.label" aria-label="Nom">
         ${L.cols.includes('kind') ? `<select data-set="${L.key}.${i}.kind" aria-label="Type">${opts(KINDS, it.kind)}</select>` : ''}
         ${L.cols.includes('side') ? `<select data-set="${L.key}.${i}.side" aria-label="Côté">${opts(SIDES, it.side)}</select>` : ''}
+        ${L.cols.includes('ask') ? `<label class="chk-i"><input type="checkbox" data-set="${L.key}.${i}.jeu" ${it.jeu !== false ? 'checked' : ''}> demande un jeu</label>` : ''}
+        <button class="btn small" type="button" data-act="rowmove" data-list="${L.key}" data-i="${i}" data-d="-1" aria-label="Monter">▲</button>
+        <button class="btn small" type="button" data-act="rowmove" data-list="${L.key}" data-i="${i}" data-d="1" aria-label="Descendre">▼</button>
         <button class="btn danger small" type="button" data-act="delrow" data-list="${L.key}" data-i="${i}" aria-label="Supprimer">✕</button></div>`).join('')}
       <button class="btn" type="button" data-act="addrow" data-list="${L.key}">Ajouter</button></div>`).join('')}
     <div class="card"><div class="card-h"><h2>Réinitialiser</h2></div>
@@ -419,6 +423,7 @@ function unloadVideo() {
 function openMatch(id) {
   S.m = S.matches.find(x => x.id === id);
   S.player = null; S.lastTag = null; lastT = -1;
+  S.rq.cur = null; S.rq.undoId = null; S.rq.lastSecs = null; S.seqSel = null; S.playWin = null;
   unloadVideo();
   setView('match');
   if (!S.m.sheet.length && S.roster.length) dlgSheet();
@@ -561,7 +566,7 @@ async function importJSON(file) {
   try { data = JSON.parse(await file.text()); } catch { toast('Fichier illisible.'); return; }
   if (data.app !== 'hb-analyse') { toast('Ce fichier n’est pas une sauvegarde de l’application.'); return; }
   if (!confirm('Restaurer cette sauvegarde ? Les matchs de la sauvegarde sont ajoutés (ou remplacés s’ils existent déjà), l’effectif et les réglages sont remplacés.')) return;
-  if (data.settings) { S.settings = Object.assign(clone(DEFAULTS), data.settings); S.settings.saisie = Object.assign({}, DEFAULTS.saisie, S.settings.saisie || {}); await saveSettings(); }
+  if (data.settings) { S.settings = Object.assign(clone(DEFAULTS), data.settings); migrateSettings(); await saveSettings(); }
   if (data.roster) { S.roster = data.roster; await saveRoster(); }
   for (const m of data.matches || []) {
     await DB.put('matches', m);
@@ -597,6 +602,27 @@ document.addEventListener('click', e => {
     }
     case 'closedlg': closeDlg(); break;
     case 'stats': setView('stats'); break;
+    case 'rq': rqPick(d.s, d.id); break;
+    case 'rqclear': rqClear(d.s); break;
+    case 'rqundo': rqUndo(); break;
+    case 'rqresume': rqResume(d.id); break;
+    case 'seqplay': seqPlay(d.id); break;
+    case 'seqoff': seqOff(d.id, d.w, Number(d.d)); break;
+    case 'seqreset': seqReset(d.id); break;
+    case 'seqtoggle': S.seqOpen = S.seqOpen === false; renderBanner(); break;
+    case 'scdefault': S.settings.shortcuts = clone(DEFAULTS.shortcuts); saveSettings(); renderSettings(); break;
+    case 'rowmove': if (moveInArray(S.settings[d.list], Number(d.i), Number(d.d))) { saveSettings(); renderSettings(); } break;
+    case 'stepmove': {
+      const o = rqOrder(), i = o.indexOf(d.s), nd = Number(d.d), j = i + nd;
+      if (j < 0 || j >= o.length) break;
+      [o[i], o[j]] = [o[j], o[i]];
+      const pi = o.indexOf('phase');
+      if (pi > o.indexOf('jeu') || pi > o.indexOf('res')) { toast('La catégorie doit rester avant le jeu et le résultat.'); break; }
+      S.settings.rapide.order = o; saveSettings(); renderSettings(); break;
+    }
+    case 'rqresadd': { const l = S.settings.rapide.res[d.side] || (S.settings.rapide.res[d.side] = []); const cand = S.settings.issues.find(x => !l.includes(x.id)); if (cand) { l.push(cand.id); saveSettings(); renderSettings(); } break; }
+    case 'rqresdel': S.settings.rapide.res[d.side].splice(Number(d.i), 1); saveSettings(); renderSettings(); break;
+    case 'rqresmove': if (moveInArray(S.settings.rapide.res[d.side], Number(d.i), Number(d.d))) { saveSettings(); renderSettings(); } break;
     case 'sfreset': S.sf = { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '' }; renderStats(); break;
     case 'csvsel': download(`analyse-${today()}.csv`, buildCSV(statsMatches()), 'text/csv;charset=utf-8'); break;
     case 'pickmatch': dlgPick(); break;
@@ -606,7 +632,7 @@ document.addEventListener('click', e => {
     case 'logout': Cloud.logout(); toast('Déconnecté.'); if (S.view === 'settings') renderSettings(); break;
     case 'sync': Cloud.sync().then(r => { if (r && r.error) toast(Cloud.state.msg); else if (r) { toast('Synchronisé (' + r.down + ' reçus, ' + r.up + ' envoyés).'); } if (S.view === 'home') renderHome(); }); break;
     case 'pconfirm': commitPoss(); break;
-    case 'replay': if (needVideo()) { v.currentTime = Math.max(0, v.currentTime - S.settings.saisie.replaySec); v.play(); } break;
+    case 'replay': if (needVideo()) { v.currentTime = Math.max(0, v.currentTime - S.settings.saisie.replaySec); playV(); } break;
     case 'sheetpaste': collectSheet(); dlgSheetPaste(); break;
     case 'dosheetpaste': doSheetPaste(); break;
     case 'newplayer': collectSheet(); dlgNewPlayer(); break;
@@ -616,7 +642,7 @@ document.addEventListener('click', e => {
     case 'csv': if (S.m) download(`${slug(S.m.date + '-hbccs-' + S.m.adversaire)}.csv`, buildCSV(S.m), 'text/csv;charset=utf-8'); break;
     case 'pickvideo': $('#filevideo').click(); break;
 
-    case 'play': if (needVideo()) { v.paused ? v.play() : v.pause(); } break;
+    case 'play': if (needVideo()) { v.paused ? playV() : v.pause(); } break;
     case 'seek': if (needVideo()) v.currentTime = Math.min(Math.max(v.currentTime + Number(d.d), 0), v.duration || 1e9); break;
     case 'frame': if (needVideo()) { v.pause(); v.currentTime = Math.max(0, v.currentTime + Number(d.d) / S.settings.fps); } break;
     case 'speed': S.speedIdx = (S.speedIdx + 1) % SPEEDS.length; v.playbackRate = SPEEDS[S.speedIdx]; $('#speedbtn').textContent = SPEEDS[S.speedIdx].toString().replace('.', ',') + '×'; break;
@@ -681,13 +707,14 @@ document.addEventListener('click', e => {
     case 'addrow': {
       const L = d.list, row = { id: uid(), label: 'Nouveau' };
       if (['phases', 'jeux', 'issues'].includes(L)) row.side = 'attaque';
+      if (L === 'phases') row.jeu = true;
       if (L === 'jeux') row.kind = 'combinaison';
       S.settings[L].push(row); saveSettings(); renderSettings(); break;
     }
     case 'delrow': S.settings[d.list].splice(Number(d.i), 1); saveSettings(); renderSettings(); break;
     case 'resetlists':
       if (confirm('Remettre toutes les listes aux valeurs par défaut ?')) {
-        const keep = { periodMinutes: S.settings.periodMinutes, fps: S.settings.fps, saisie: S.settings.saisie };
+        const keep = { periodMinutes: S.settings.periodMinutes, fps: S.settings.fps, saisie: S.settings.saisie, shortcuts: S.settings.shortcuts };
         S.settings = Object.assign(clone(DEFAULTS), keep); saveSettings(); renderSettings();
       }
       break;
@@ -701,6 +728,10 @@ document.addEventListener('change', e => {
     const k = t.dataset.sk;
     S.settings.saisie[k] = t.type === 'checkbox' ? t.checked : Math.min(30, Math.max(1, Number(t.value) || 5));
     saveSettings(); applyReplayBtn();
+  } else if (t.dataset.rq) {
+    S.settings.rapide[t.dataset.rq] = Math.min(60, Math.max(0, Number(t.value) || 0)); saveSettings();
+  } else if (t.dataset.rqres) {
+    const [side, i] = t.dataset.rqres.split('.'); S.settings.rapide.res[side][Number(i)] = t.value; saveSettings();
   } else if (t.dataset.sf) {
     S.sf[t.dataset.sf] = t.value; renderStats();
   } else if (t.dataset.pick) {
@@ -710,7 +741,7 @@ document.addEventListener('change', e => {
   } else if (t.dataset.set) {
     const parts = t.dataset.set.split('.');
     if (parts.length === 1) { S.settings[parts[0]] = Math.max(1, Number(t.value) || DEFAULTS[parts[0]]); }
-    else S.settings[parts[0]][Number(parts[1])][parts[2]] = t.value;
+    else S.settings[parts[0]][Number(parts[1])][parts[2]] = t.type === 'checkbox' ? t.checked : t.value;
     saveSettings();
   }
 });
@@ -721,7 +752,7 @@ document.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag) || $('#dlg').open) return;
   const v = V();
-  if (e.code === 'Space') { e.preventDefault(); v.paused ? v.play() : v.pause(); }
+  if (e.code === 'Space') { e.preventDefault(); v.paused ? playV() : v.pause(); }
   else if (e.code === 'ArrowLeft') { e.preventDefault(); v.currentTime = Math.max(0, v.currentTime - (e.shiftKey ? 5 : 1)); }
   else if (e.code === 'ArrowRight') { e.preventDefault(); v.currentTime += (e.shiftKey ? 5 : 1); }
   else if (e.key === ',') { v.pause(); v.currentTime = Math.max(0, v.currentTime - 1 / S.settings.fps); }
@@ -761,6 +792,18 @@ function bindStatic() {
   });
 }
 
+/* met à niveau les réglages enregistrés : ajoute ce qui manque sans toucher à ce que tu as modifié */
+function migrateSettings() {
+  const st = S.settings, D = DEFAULTS;
+  st.saisie = Object.assign({}, D.saisie, st.saisie || {});
+  st.shortcuts = Object.assign({}, D.shortcuts, st.shortcuts || {});
+  st.rapide = Object.assign(clone(D.rapide), st.rapide || {});
+  st.rapide.res = Object.assign(clone(D.rapide.res), st.rapide.res || {});
+  if (!st.phases.some(p => p.id === 'montee')) st.phases.splice(1, 0, clone(D.phases.find(p => p.id === 'montee')));
+  st.phases.forEach(p => { if (p.jeu === undefined) { const d = D.phases.find(x => x.id === p.id); p.jeu = d ? d.jeu : true; } });
+  if (!st.issues.some(i => i.id === 'pas-but')) st.issues.splice(st.issues.length - 1, 0, clone(D.issues.find(i => i.id === 'pas-but')));
+}
+
 async function init() {
   try {
     const st = await DB.get('kv', 'settings');
@@ -775,7 +818,7 @@ async function init() {
     toast('Stockage du navigateur indisponible : les données ne seront pas conservées.');
   }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => { });
-  S.settings.saisie = Object.assign({}, DEFAULTS.saisie, S.settings.saisie || {});
+  migrateSettings();
   bindStatic();
   applyReplayBtn();
   setView('home');

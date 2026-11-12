@@ -144,7 +144,7 @@ const Cloud = (() => {
       const rv = rp.length ? rp[0].valeur : null;
       if (rv && (rv.updated || 0) > (S.prefsUpdated || 0)) {
         S.settings = Object.assign(clone(DEFAULTS), rv.settings || {});
-        S.settings.saisie = Object.assign({}, DEFAULTS.saisie, S.settings.saisie || {});
+        migrateSettings();
         S.roster = rv.roster || [];
         S.prefsUpdated = rv.updated;
         await DB.put('kv', { key: 'settings', value: S.settings }); await DB.put('kv', { key: 'roster', value: S.roster });

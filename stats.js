@@ -13,7 +13,7 @@ function statsPoss(ms) {
     if (f.jeu && p.jeu !== f.jeu) return;
     if (f.issue && p.issue !== f.issue) return;
     if (f.real && p.real !== f.real) return;
-    if (f.player && !m.tags.some(t => t.poss === p.id && t.playerId === f.player)) return;
+    if (f.player && p.playerId !== f.player && !m.tags.some(t => t.poss === p.id && t.playerId === f.player)) return;
     out.push({ m, p, side, kind });
   }));
   return out;
@@ -62,8 +62,19 @@ function renderStats() {
   });
   const playerRows = [...players.values()].sort((a, b) => (parseInt(a.num) || 999) - (parseInt(b.num) || 999));
 
+  /* situations marquées par joueur (marquage rapide) */
+  const bySit = new Map();
+  poss.filter(x => x.p.playerId).forEach(x => {
+    const r = S.roster.find(z => z.id === x.p.playerId), k = x.p.playerId;
+    const o = bySit.get(k) || { name: (r && r.name) || x.p.pname || '?', num: x.p.pnum || (r && r.num) || '', n: 0, but: 0, pas: 0 };
+    o.n++; if (x.p.issue === 'but' || x.p.issue === 'but-enc') o.but++; else if (x.p.issue === 'pas-but') o.pas++;
+    bySit.set(k, o);
+  });
+  const sitRows = [...bySit.values()].sort((a, b) => b.n - a.n);
+
   /* listes de filtres */
   const allPlayers = new Map();
+  S.matches.forEach(m => m.possessions.forEach(p => { if (p.playerId && !allPlayers.has(p.playerId)) { const r = S.roster.find(z => z.id === p.playerId); allPlayers.set(p.playerId, (r && r.name) || p.pname || '?'); } }));
   S.matches.forEach(m => m.tags.forEach(t => { if (!allPlayers.has(t.playerId)) { const r = S.roster.find(z => z.id === t.playerId); allPlayers.set(t.playerId, (r && r.name) || t.pname || '?'); } }));
   const sel = (key, label, opts) => `<label class="sf"><span>${label}</span><select data-sf="${key}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(f[key]) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
   const tbl = (head, rows) => rows.length ? `<div class="tw"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td${i ? ' class="n"' : ''}>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="hint">Rien à afficher avec ces filtres.</p>';
@@ -87,6 +98,8 @@ function renderStats() {
       <p class="hint">* En attaque : buts marqués. En défense : buts encaissés. « Jouée jusqu’au bout » est calculé sur les possessions où tu as renseigné « Jeu réalisé ? ».</p></div>
     <div class="card"><div class="card-h"><h2>Issues</h2></div>${tbl(['Issue', 'Nombre', '%'], issues.map(([l, n]) => [esc(l), n, pc(n, poss.length)]))}</div>
     <div class="card"><div class="card-h"><h2>Causes d’échec</h2></div>${tbl(['Cause', 'Nombre', '%'], causes.map(([l, n]) => [esc(l), n, pc(n, poss.length)]))}</div>
+    <div class="card"><div class="card-h"><h2>Situations marquées par joueur</h2></div>
+      ${tbl(['Joueur', 'Situations', 'Buts (marqués ou encaissés)', 'Pas de but'], sitRows.map(o => [esc((o.num ? o.num + ' ' : '') + o.name), o.n, o.but, o.pas]))}</div>
     <div class="card"><div class="card-h"><h2>Actions par joueur</h2></div>
       ${tbl(['Joueur', ...actIds.map(a => esc(actLabel(a))), 'Total'], playerRows.map(p => [esc((p.num ? p.num + ' ' : '') + p.name), ...actIds.map(a => p.c[a] || ''), p.total]))}
       ${possActive ? '<p class="hint">Filtres de possession actifs : seules les actions rattachées à ces possessions sont comptées.</p>' : ''}</div>

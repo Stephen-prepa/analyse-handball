@@ -33,7 +33,10 @@ const DB = (() => {
 const DEFAULTS = {
   periodMinutes: 25,
   fps: 25,
-  saisie: { autoPause: true, recap: true, replay: true, replaySec: 5 },
+  saisie: { autoPause: false, recap: false, replay: true, replaySec: 5 },
+  /* marquage rapide : ordre des étapes, fenêtre autour du premier appui, résultats proposés (ids de « issues ») par côté */
+  rapide: { before: 10, after: 3, order: ['phase', 'jeu', 'res', 'joueur'], res: { attaque: ['but', 'pas-but'], defense: ['but-enc', 'pas-but'] } },
+  shortcuts: { next: ']', prev: '[', end5: 'e', end10: 'E', start5: 's', start10: 'S', replay: 'r', setIn: 'i', setOut: 'o' },
   actions: [
     { id: 'tir', label: 'Tir' },
     { id: 'but', label: 'But' },
@@ -44,12 +47,13 @@ const DEFAULTS = {
     { id: 'exclusion', label: 'Exclusion' }
   ],
   phases: [
-    { id: 'att-placee', label: 'Attaque placée', side: 'attaque' },
-    { id: 'contre', label: 'Contre-attaque', side: 'attaque' },
-    { id: 'sup', label: 'Supériorité numérique', side: 'attaque' },
-    { id: 'inf', label: 'Infériorité numérique', side: 'attaque' },
-    { id: 'repli', label: 'Repli', side: 'defense' },
-    { id: 'def-placee', label: 'Défense placée', side: 'defense' }
+    { id: 'att-placee', label: 'Attaque placée', side: 'attaque', jeu: true },
+    { id: 'montee', label: 'Montée de balle', side: 'attaque', jeu: false },
+    { id: 'contre', label: 'Contre-attaque', side: 'attaque', jeu: false },
+    { id: 'sup', label: 'Supériorité numérique', side: 'attaque', jeu: true },
+    { id: 'inf', label: 'Infériorité numérique', side: 'attaque', jeu: true },
+    { id: 'repli', label: 'Repli', side: 'defense', jeu: false },
+    { id: 'def-placee', label: 'Défense placée', side: 'defense', jeu: true }
   ],
   jeux: [
     { id: 'comb-a', label: 'Combinaison A', kind: 'combinaison', side: 'attaque' },
@@ -74,6 +78,7 @@ const DEFAULTS = {
     { id: 'tir-adv-manque', label: 'Tir adverse manqué', side: 'defense' },
     { id: 'recup', label: 'Ballon récupéré', side: 'defense' },
     { id: 'faute-def', label: 'Faute / exclusion', side: 'defense' },
+    { id: 'pas-but', label: 'Pas de but', side: 'both' },
     { id: 'interrompue', label: 'Interrompue', side: 'both' }
   ],
   realisations: [
