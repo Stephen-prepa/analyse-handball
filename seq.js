@@ -51,9 +51,14 @@ function renderFsCol() {
   const col = document.getElementById('fscol'); if (!col) return;
   if (!S.fs || !S.m) { col.hidden = true; return; }
   col.hidden = false;
-  const list = [...seqList()].sort((a, b) => (b.wall || 0) - (a.wall || 0)).slice(0, 6);
-  col.innerHTML = `<div class="sect-h" style="margin:0">Dernières séquences</div>
-    ${list.map(p => `<button type="button" class="fs-card" style="--cc:${catColor(p.phase, p.phaseColor)}" data-act="fscard" data-id="${p.id}"><b>${esc(seqTitle(p))}</b><span>${seqInfo(p)}</span></button>`).join('') || '<p class="hint">Aucune séquence pour l’instant.</p>'}
+  const first = rqOrder()[0], opts = rqOptions(first, S.rq.cur || {});
+  const marks = opts.length ? rqGrid(first, opts, S.rq.cur && S.rq.cur[first], 2)
+    : first === 'joueur' ? '<p class="hint">Aucun joueur sur la feuille de match.</p>' : '<p class="hint">Aucune catégorie : ajoute-en dans Réglages.</p>';
+  const undo = S.rq.undoId && Date.now() < S.rq.undoUntil ? '<div class="rq-undo"><span>Situation enregistrée</span><button class="btn small" type="button" data-act="rqundo">Annuler</button><i></i></div>' : '';
+  const list = [...seqList()].sort((a, b) => (b.wall || 0) - (a.wall || 0)).slice(0, 3);
+  col.innerHTML = `<div class="sect-h" style="margin:0">Marquer · ${STEP_TITLE[first]}</div>${marks}${undo}
+    <div class="sect-h" style="margin:8px 0 0">Dernières séquences</div>
+    ${list.map(p => `<button type="button" class="fs-card" style="--cc:${catColor(p.phase, p.phaseColor)}" data-act="fscard" data-id="${p.id}"><b>${esc(seqTitle(p))}</b><span>${seqInfo(p)}</span></button>`).join('') || '<p class="hint" style="margin:0">Aucune séquence pour l’instant.</p>'}
     <button class="btn" type="button" data-act="fsall">Toutes les séquences</button>`;
 }
 
@@ -101,6 +106,8 @@ document.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag) || $('#dlg').open || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'Escape' && S.fs) { setFs(false); return; }
+  const ph = !e.repeat && S.settings.phases.find(p => p.key && p.key === e.key);
+  if (ph) { e.preventDefault(); rqPick('phase', ph.id); return; }
   const sc = S.settings.shortcuts, act = Object.keys(sc).find(k => sc[k] === e.key);
   if (!act) return;
   if (act === 'fs') { e.preventDefault(); setFs(!S.fs); return; }
@@ -122,16 +129,31 @@ document.addEventListener('keydown', e => {
 function shortcutsCard() {
   const sc = S.settings.shortcuts;
   return `<div class="card"><div class="card-h"><h2>Raccourcis clavier (Mac)</h2></div>
-    <p class="hint">Touche une case puis appuie sur la touche voulue. Majuscule = Maj + la lettre. Les raccourcis agissent sur la séquence sélectionnée dans le bandeau du bas. Déjà fixes : Espace, ← → (±1 s, Maj ±5 s), virgule et point (image par image).</p>
+    <p class="hint">Touche une case puis appuie sur la touche voulue. Majuscule = Maj + la lettre. Les raccourcis agissent sur la séquence sélectionnée dans le bandeau du bas. Les touches des catégories se règlent dans la liste « Catégories ». Déjà fixes : Espace, ← → (±1 s, Maj ±5 s), virgule et point (image par image).</p>
     ${Object.keys(SC_LABELS).map(k => `<div class="list-row"><label for="sc-${k}" style="flex:1">${SC_LABELS[k]}</label><input id="sc-${k}" class="w-num" type="text" readonly value="${esc(sc[k])}" data-sc="${k}" style="text-align:center;font-weight:700"></div>`).join('')}
     <button class="btn" type="button" data-act="scdefault">Remettre les raccourcis par défaut</button></div>`;
 }
 document.addEventListener('keydown', e => {
+  const t0 = e.target;
+  if (t0.dataset && t0.dataset.pkey !== undefined) {       /* touche d'une catégorie */
+    if (['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) return;
+    e.preventDefault();
+    const ph = S.settings.phases[Number(t0.dataset.pkey)]; if (!ph) return;
+    if (e.key === 'Backspace' || e.key === 'Delete') { ph.key = ''; t0.value = ''; saveSettings(); toast('Touche retirée.'); return; }
+    if (e.key.length !== 1) { toast('Une touche simple (lettre, chiffre ou symbole). Retour arrière pour la retirer.'); return; }
+    const sc = S.settings.shortcuts, ck = Object.keys(sc).find(k => sc[k] === e.key);
+    if (ck) { toast('Déjà utilisée pour : ' + SC_LABELS[ck]); return; }
+    const other = S.settings.phases.find(p => p !== ph && p.key === e.key);
+    if (other) { toast('Déjà utilisée pour la catégorie : ' + other.label); return; }
+    ph.key = e.key; t0.value = e.key; saveSettings(); return;
+  }
   const t = e.target; if (!t.dataset || !t.dataset.sc) return;
   if (['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) return;
   e.preventDefault();
   if (e.key.length !== 1 && e.key !== 'Enter') { toast('Une touche simple (lettre, chiffre ou symbole).'); return; }
   const sc = S.settings.shortcuts, clash = Object.keys(sc).find(k => k !== t.dataset.sc && sc[k] === e.key);
   if (clash) { toast('Déjà utilisée pour : ' + SC_LABELS[clash]); return; }
+  const pc = S.settings.phases.find(p => p.key === e.key);
+  if (pc) { toast('Déjà utilisée pour la catégorie : ' + pc.label); return; }
   sc[t.dataset.sc] = e.key; t.value = e.key; saveSettings();
 });

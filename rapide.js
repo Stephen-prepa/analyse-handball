@@ -35,7 +35,7 @@ function rqNext(c) {
 }
 function rqOptions(step, c) {
   const st = S.settings;
-  if (step === 'phase') return st.phases.map(p => ({ id: p.id, label: p.label, color: p.color }));
+  if (step === 'phase') return st.phases.map(p => ({ id: p.id, label: p.label, color: p.color, key: p.key }));
   if (step === 'jeu') return rqJeux(rqPhase(c && c.phase)).map(j => ({ id: j.id, label: j.label }));
   if (step === 'res') return rqResIds(rqPhase(c && c.phase)).map(id => ({ id, label: lab(st.issues, id), cls: id === 'but' ? 'good' : id === 'but-enc' ? 'bad' : 'neutral' }));
   return sheetPlayers(S.m).map(p => ({ id: p.id, label: p.num || '?', sub: p.name }));
@@ -48,13 +48,13 @@ function rqValueLabel(s, id) {
 }
 
 /* grille dont la taille des boutons s'adapte au nombre de boutons */
-function rqGrid(step, opts, chosen) {
+function rqGrid(step, opts, chosen, forceCols) {
   const n = opts.length;
-  const cols = step === 'joueur' ? (n <= 6 ? 3 : n <= 16 ? 4 : 5) : (n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5);
+  const cols = forceCols || step === 'joueur' ? (n <= 6 ? 3 : n <= 16 ? 4 : 5) : (n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5);
   const h = n <= 2 ? 96 : n <= 4 ? 80 : n <= 6 ? 72 : n <= 9 ? 64 : n <= 16 ? 58 : 48;
   const fs = n <= 4 ? 20 : n <= 9 ? 16 : n <= 16 ? 15 : 13;
   return `<div class="rq-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr));--rq-h:${h}px;--rq-fs:${fs}px">${opts.map(o =>
-    `<button type="button" class="rq-opt ${step === 'joueur' ? 'rq-pl' : ''} ${o.cls || ''} ${o.color ? 'rq-cat' : ''}" ${o.color ? `style="--cc:${esc(o.color)}"` : ''} aria-pressed="${chosen === o.id}" data-act="rq" data-s="${step}" data-id="${esc(o.id)}"><b>${esc(o.label)}</b>${o.sub ? `<span>${esc(o.sub)}</span>` : ''}</button>`).join('')}</div>`;
+    `<button type="button" class="rq-opt ${step === 'joueur' ? 'rq-pl' : ''} ${o.cls || ''} ${o.color ? 'rq-cat' : ''}" ${o.color ? `style="--cc:${esc(o.color)}"` : ''} aria-pressed="${chosen === o.id}" data-act="rq" data-s="${step}" data-id="${esc(o.id)}"><b>${esc(o.label)}</b>${o.sub ? `<span>${esc(o.sub)}</span>` : ''}${o.key ? `<i class="rq-key">${esc(o.key.toUpperCase())}</i>` : ''}</button>`).join('')}</div>`;
 }
 
 function rqHtml() {
@@ -80,6 +80,7 @@ function rqRefreshAll() { renderPanel(); renderTimeline(); renderJournal(); }
 
 function rqPick(step, id) {
   if (!needVideo()) return;
+  const fromFs = S.fs;
   const ord = rqOrder(), first = ord[0];
   let c = S.rq.cur;
   if (c && step === first && ord.some(s => s !== first && c[s])) { rqSave(true); c = null; }   // nouvelle situation
@@ -90,13 +91,15 @@ function rqPick(step, id) {
     if (c.jeu && !rqJeux(ph).some(j => j.id === c.jeu)) c.jeu = null;
     if (c.res && !rqResIds(ph).includes(c.res)) c.res = null;
   }
+  if (fromFs) { c.fromFs = true; setFs(false); }        // depuis le grand écran : la vidéo se réduit, la suite s'affiche
+  if (S.tab !== 'rapide') S.tab = 'rapide';
   if (rqNext(c) === null) rqSave(false); else rqRender();
 }
 function rqClear(step) {
   const c = S.rq.cur; if (!c) return;
   c[step] = null;
   if (step === 'phase') { c.jeu = null; c.res = null; }
-  if (!RQ_STEPS.some(s => c[s])) S.rq.cur = null;
+  if (!RQ_STEPS.some(s => c[s])) { S.rq.cur = null; if (c.fromFs && S.settings.saisie.fsReturn) setFs(true); }
   rqRender();
 }
 
@@ -123,14 +126,15 @@ function rqSave(forceInc) {
   if (!forceInc) {
     S.rq.lastSecs = (performance.now() - c.wall0) / 1000;
     S.rq.undoId = p.id; S.rq.undoUntil = Date.now() + 6000;
-    setTimeout(() => { if (Date.now() >= S.rq.undoUntil) { S.rq.undoId = null; rqRender(); } }, 6100);
+    setTimeout(() => { if (Date.now() >= S.rq.undoUntil) { S.rq.undoId = null; rqRender(); renderFsCol(); } }, 6100);
   }
   rqRefreshAll();
+  if (c.fromFs && !forceInc && S.settings.saisie.fsReturn) { setFs(true); toast('Situation enregistrée'); }
 }
 function rqUndo() {
   const id = S.rq.undoId; if (!id) return;
   S.m.possessions = S.m.possessions.filter(x => x.id !== id); S.rq.undoId = null; S.rq.lastSecs = null;
-  saveMatch(); rqRefreshAll();
+  saveMatch(); rqRefreshAll(); renderFsCol();
 }
 function rqResume(id) {
   const p = S.m.possessions.find(x => x.id === id); if (!p) return;

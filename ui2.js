@@ -75,6 +75,7 @@ function saisieCard() {
     ${row('recap', 'Récapitulatif avant de valider une possession', 'Une fenêtre résume la possession (phase, jeu, issue, actions liées) pour vérifier avant d’enregistrer.')}
     ${row('replay', 'Bouton « Rejouer »', 'Un bouton sous la vidéo revient de quelques secondes en arrière et relance la lecture.')}
     ${row('fsShrink', 'Grand écran : réduire la vidéo quand je passe aux séquences', 'En grand écran, toucher une carte ou utiliser un raccourci de séquençage ramène la vidéo à sa taille normale, avec le bandeau complet. La lecture continue.')}
+    ${row('fsReturn', 'Grand écran : revenir tout seul après le dernier bouton', 'Quand tu as marqué une situation depuis le grand écran, la vidéo repasse en grand écran dès que tu as choisi le joueur (ou la dernière étape).')}
     <div class="list-row"><label for="rsec" style="flex:1">Durée du retour « Rejouer » (secondes)</label><input id="rsec" class="w-num" type="number" min="1" max="30" value="${k.replaySec}" data-sk="replaySec"></div></div>`;
 }
 function applyReplayBtn() { const b = $('#replaybtn'); if (b) { b.hidden = !S.settings.saisie.replay; b.textContent = '↺ ' + S.settings.saisie.replaySec + ' s'; } }

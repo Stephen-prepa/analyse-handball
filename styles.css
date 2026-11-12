@@ -242,3 +242,11 @@ body.fs #seqbar{display:none!important}
 .fs-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--raised);border:2px solid var(--line);border-left:8px solid var(--cc);border-radius:12px;padding:8px 10px;min-height:64px}
 .fs-card b{font-size:15px}
 .fs-card span{font-size:13px;color:var(--muted)}
+
+/* grand écran : cartes de marquage */
+.rq-opt{position:relative}
+.rq-key{position:absolute;top:4px;right:6px;font-style:normal;font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 5px;line-height:16px}
+.rq-cat[aria-pressed="true"] .rq-key{color:var(--ink);border-color:var(--ink)}
+.key-in{width:64px;text-align:center;font-weight:700}
+.list-row.phase-row{flex-wrap:wrap}
+#match.fs{grid-template-columns:minmax(0,1fr) 300px}

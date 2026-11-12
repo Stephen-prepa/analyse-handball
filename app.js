@@ -339,11 +339,12 @@ function renderSettings() {
     </div>
     ${compteCard()}${saisieCard()}${rapideCard()}${shortcutsCard()}
     ${LISTS.map(L => `<div class="card"><div class="card-h"><h2>${L.title}</h2></div>
-      ${st[L.key].map((it, i) => `<div class="list-row">
+      ${st[L.key].map((it, i) => `<div class="list-row ${L.key === 'phases' ? 'phase-row' : ''}">
         <input type="text" value="${esc(it.label)}" data-set="${L.key}.${i}.label" aria-label="Nom">
         ${L.cols.includes('kind') ? `<select data-set="${L.key}.${i}.kind" aria-label="Type">${opts(KINDS, it.kind)}</select>` : ''}
         ${L.cols.includes('ask') ? `<button class="swatch" type="button" data-act="colorpick" data-i="${i}" style="background:${esc(it.color || '#9AA8B6')}" aria-label="Couleur de ${esc(it.label)}"></button>` : ''}
         ${L.cols.includes('side') ? `<select data-set="${L.key}.${i}.side" aria-label="Côté">${opts(SIDES, it.side)}</select>` : ''}
+        ${L.cols.includes('ask') ? `<input class="w-num key-in" type="text" readonly value="${esc(it.key || '')}" placeholder="touche" data-pkey="${i}" aria-label="Touche du clavier pour ${esc(it.label)}">` : ''}
         ${L.cols.includes('ask') ? `<label class="chk-i"><input type="checkbox" data-set="${L.key}.${i}.jeu" ${it.jeu !== false ? 'checked' : ''}> demande un jeu</label>` : ''}
         <button class="btn small" type="button" data-act="rowmove" data-list="${L.key}" data-i="${i}" data-d="-1" aria-label="Monter">▲</button>
         <button class="btn small" type="button" data-act="rowmove" data-list="${L.key}" data-i="${i}" data-d="1" aria-label="Descendre">▼</button>
@@ -714,7 +715,7 @@ document.addEventListener('click', e => {
     case 'addrow': {
       const L = d.list, row = { id: uid(), label: 'Nouveau' };
       if (['phases', 'jeux', 'issues'].includes(L)) row.side = 'attaque';
-      if (L === 'phases') { row.jeu = true; row.color = PALETTE.find(c => !S.settings.phases.some(p => p.color === c)) || PALETTE[S.settings.phases.length % PALETTE.length]; }
+      if (L === 'phases') { row.key = ''; row.jeu = true; row.color = PALETTE.find(c => !S.settings.phases.some(p => p.color === c)) || PALETTE[S.settings.phases.length % PALETTE.length]; }
       if (L === 'jeux') row.kind = 'combinaison';
       S.settings[L].push(row); saveSettings(); renderSettings(); break;
     }
@@ -807,6 +808,7 @@ function migrateSettings() {
   st.rapide = Object.assign(clone(D.rapide), st.rapide || {});
   st.rapide.res = Object.assign(clone(D.rapide.res), st.rapide.res || {});
   if (!st.phases.some(p => p.id === 'montee')) st.phases.splice(1, 0, clone(D.phases.find(p => p.id === 'montee')));
+  st.phases.forEach(p => { if (p.key === undefined) p.key = PHASE_KEYS[p.id] || ''; });
   st.phases.forEach((p, i) => { if (!p.color) p.color = PHASE_COLORS[p.id] || PALETTE[i % PALETTE.length]; });
   st.phases.forEach(p => { if (p.jeu === undefined) { const d = D.phases.find(x => x.id === p.id); p.jeu = d ? d.jeu : true; } });
   if (!st.issues.some(i => i.id === 'pas-but')) st.issues.splice(st.issues.length - 1, 0, clone(D.issues.find(i => i.id === 'pas-but')));
