@@ -273,3 +273,11 @@ body.fs #seqbar{display:none!important}
 .seq-bl{font-size:12px;color:var(--muted);min-width:118px;font-weight:600}
 .seq-bg .btn{min-width:52px;padding:0 8px}
 .seq-bg .btn.cut{background:none}
+
+/* repères : 4 boutons toujours visibles, détail replié */
+#marks{padding:8px}
+.mquick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) 74px;gap:6px}
+.mbtn.big{min-height:56px}
+.mbtn.big b{font-size:15px}
+.mbtn.mmore{min-height:56px;background:none}
+@media (max-width:560px){.mquick{grid-template-columns:repeat(2,minmax(0,1fr))}.mbtn.mmore{grid-column:1/-1;min-height:40px}}

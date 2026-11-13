@@ -163,13 +163,27 @@ function renderMarks() {
     return `<button class="mbtn ${set ? 'set' : ''}" type="button" data-act="mark" data-type="${t}"><b>${MARK_LABELS[t]}</b><span>${sub}</span></button>`;
   };
   const all = [...m.marks].sort((a, b) => a.t - b.t);
+  const np = periodsOf(m), has = t => marksOf(m, t).length > 0;
+  /* sifflet de début : première période sans début ; fin : période en cours (commencée, sans fin) */
+  let ns = 1; while (ns <= np && has('p' + ns + 's')) ns++; if (ns > np) ns = np;
+  let ne = 0; for (let n = 1; n <= np; n++) if (has('p' + n + 's') && !has('p' + n + 'e')) ne = n;
+  if (!ne) { for (let n = np; n >= 1; n--) if (has('p' + n + 'e')) { ne = n; break; } if (!ne) ne = 1; }
+  const big = (t, label) => {
+    const c = marksOf(m, t), set = c.length > 0;
+    const sub = (t === 'to' || t === 'rs') ? (set ? '× ' + c.length : '') : (set ? fmtL(c[0].t) : '');
+    return `<button class="mbtn big ${set ? 'set' : ''}" type="button" data-act="mark" data-type="${t}"><b>${label}</b><span>${sub || '&nbsp;'}</span></button>`;
+  };
+  const open = !!S.marksBox;
   $('#marks').innerHTML = `
-    <div class="sect-h">Repères de synchro · coups de sifflet</div>
-    <div class="mgrid pgrid">${Array.from({ length: periodsOf(m) }, (_, i) => btn('p' + (i + 1) + 's') + btn('p' + (i + 1) + 'e')).join('')}</div>
-    <div class="mgrid pgrid" style="margin-top:6px">${btn('to')}${btn('rs')}</div>
-    ${all.length ? `<details class="mdet"${S.marksOpen ? ' open' : ''}><summary>Voir ou supprimer les repères (${all.length})</summary><div class="mlist">${all.map(x => `
+    <div class="mquick">
+      ${big('p' + ns + 's', 'Sifflet début P' + ns)}${big('to', 'Temps mort')}${big('rs', 'Reprise')}${big('p' + ne + 'e', ne === np ? 'Fin de match' : 'Fin P' + ne)}
+      <button class="mbtn mmore" type="button" data-act="marksbox" aria-expanded="${open}" aria-label="Détail des repères"><b>${open ? 'Fermer' : 'Détail'}</b><span>${open ? '▴' : '▾'}</span></button>
+    </div>
+    ${open ? `<div class="sect-h" style="margin-top:10px">Tous les repères</div>
+    <div class="mgrid pgrid">${Array.from({ length: np }, (_, i) => btn('p' + (i + 1) + 's') + btn('p' + (i + 1) + 'e')).join('')}</div>
+    ${all.length ? `<div class="mlist" style="margin-top:8px">${all.map(x => `
       <span class="mchip"><button type="button" data-act="goto" data-t="${x.t}">${MARK_LABELS[x.type]} · ${fmtL(x.t)}</button>
-      <button class="x" type="button" data-act="delmark" data-id="${x.id}" aria-label="Supprimer le repère">✕</button></span>`).join('')}</div></details>` : ''}`;
+      <button class="x" type="button" data-act="delmark" data-id="${x.id}" aria-label="Supprimer le repère">✕</button></span>`).join('')}</div>` : '<p class="hint" style="margin:8px 0 0">Aucun repère posé.</p>'}` : ''}`;
 }
 
 function renderTimeline() {
@@ -663,6 +677,7 @@ document.addEventListener('click', e => {
     case 'goto': if (S.videoReady) { v.currentTime = Number(d.t); } else toast('Choisis d’abord la vidéo du match.'); break;
 
     case 'mark': addMark(d.type); break;
+    case 'marksbox': S.marksBox = !S.marksBox; renderMarks(); break;
     case 'delmark': S.m.marks = S.m.marks.filter(x => x.id !== d.id); saveMatch(); renderMarks(); renderTimeline(); renderJournal(); updateTime(v.currentTime || 0); break;
 
     case 'tab': S.tab = d.id; renderPanel(); break;
