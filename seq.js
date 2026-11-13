@@ -25,13 +25,22 @@ function renderBanner() {
   if (!open) { bar.innerHTML = head; return; }
   let editor = '<p class="seq-help">Touche une carte pour la revoir, puis règle son début et sa fin.</p>';
   if (sel) {
-    const w = seqWin(sel), grp = (which, label, t) => `<div class="seq-eg"><div class="seq-et"><b>${label}</b><span class="mono">${fmt(t)}</span></div>
-      <div class="seq-eb">${[-10, -5, 5, 10].map(d => `<button class="btn small" type="button" data-act="seqshift" data-id="${sel.id}" data-w="${which}" data-d="${d}">${d > 0 ? '+' : '−'}${Math.abs(d)} s</button>`).join('')}
-      <button class="btn small" type="button" data-act="seqhere" data-id="${sel.id}" data-w="${which}">Ici</button></div></div>`;
-    editor = `<div class="seq-ed" style="--cc:${catColor(sel.phase, sel.phaseColor)}"><div class="seq-en"><b>${esc(seqTitle(sel))}</b><span class="muted">${Math.round(w.b - w.a)} s</span></div>
-      ${grp('s', 'Début', w.a)}${grp('e', 'Fin', w.b)}
+    const w = seqWin(sel), dur = S.videoReady && isFinite(V().duration) ? V().duration : w.b + 8;
+    const r0 = Math.max(0, w.a - 8), r1 = Math.min(dur, w.b + 8), pc = t => (((t - r0) / ((r1 - r0) || 1)) * 100).toFixed(2);
+    const bt = (which, d, txt, cls) => `<button class="btn small ${cls || ''}" type="button" data-act="seqshift" data-id="${sel.id}" data-w="${which}" data-d="${d}">${txt}</button>`;
+    editor = `<div class="seq-ed" style="--cc:${catColor(sel.phase, sel.phaseColor)}">
+      <div class="seq-en"><b>${esc(seqTitle(sel))}</b><span class="seq-dur"><span id="seqdur">${Math.round(w.b - w.a)}</span> s <span class="muted mono">${fmt(w.a)} → ${fmt(w.b)}</span></span></div>
+      <div class="seq-stripw"><div class="seq-strip" data-id="${sel.id}" data-r0="${r0}" data-r1="${r1}">
+        <div class="seq-band" style="left:${pc(w.a)}%;width:${(pc(w.b) - pc(w.a)).toFixed(2)}%"></div>
+        <button type="button" class="seq-hd s" style="left:${pc(w.a)}%" data-hd="s" aria-label="Début : glisser"><i></i></button>
+        <button type="button" class="seq-hd e" style="left:${pc(w.b)}%" data-hd="e" aria-label="Fin : glisser"><i></i></button>
+      </div><div class="seq-strip-l"><span>${fmt(r0)}</span><span>Glisse les deux bords pour régler le début et la fin</span><span>${fmt(r1)}</span></div></div>
+      <div class="seq-btns">
+        <div class="seq-bg"><span class="seq-bl">Commence plus tôt</span>${bt('s', -1, '+1 s')}${bt('s', -2, '+2 s')}${bt('s', -5, '+5 s')}${bt('s', 1, 'Couper 1 s', 'cut')}</div>
+        <div class="seq-bg"><span class="seq-bl">Finit plus tard</span>${bt('e', 1, '+1 s')}${bt('e', 2, '+2 s')}${bt('e', 5, '+5 s')}${bt('e', -1, 'Couper 1 s', 'cut')}</div>
+      </div>
       <div class="seq-ea"><button class="btn small" type="button" data-act="seqplay" data-id="${sel.id}">▶ Revoir</button>${(sel.offS || sel.offE) ? `<button class="btn small" type="button" data-act="seqreset" data-id="${sel.id}">↺ Origine</button>` : ''}</div></div>
-      <p class="seq-help"><b>−</b> = plus tôt, <b>+</b> = plus tard. « Ici » = l’image affichée en ce moment. Ta saisie d’origine n’est jamais modifiée.</p>`;
+      <p class="seq-help">Après chaque réglage, la séquence se rejoue. Ta saisie d’origine n’est jamais modifiée.</p>`;
   }
   const cards = list.map(p => `<div class="seq-card ${p.id === S.seqSel ? 'sel' : ''} ${p.inc ? 'inc' : ''}" style="--cc:${catColor(p.phase, p.phaseColor)}" data-act="seqplay" data-id="${p.id}" role="button" tabindex="0">
       <div class="seq-t"><b>${esc(seqTitle(p))}</b></div><div class="seq-m">${seqInfo(p)}${(p.offS || p.offE) ? ' · ajustée' : ''}</div></div>`).join('');
@@ -160,3 +169,38 @@ document.addEventListener('keydown', e => {
 
 document.addEventListener('focusin', e => { const t = e.target; if (t.dataset && t.dataset.pkey !== undefined) t.placeholder = 'Appuie sur une touche…'; });
 document.addEventListener('focusout', e => { const t = e.target; if (t.dataset && t.dataset.pkey !== undefined) t.placeholder = 'aucune'; });
+
+/* glisser les bords de la séquence sur la barre */
+(() => {
+  let d = null;
+  document.addEventListener('pointerdown', e => {
+    const h = e.target.closest && e.target.closest('.seq-hd'); if (!h) return;
+    const strip = h.closest('.seq-strip'), p = seqList().find(x => x.id === strip.dataset.id); if (!p) return;
+    e.preventDefault(); h.setPointerCapture(e.pointerId);
+    const w = seqWin(p);
+    d = { h, strip, p, which: h.dataset.hd, r0: Number(strip.dataset.r0), r1: Number(strip.dataset.r1), a: w.a, b: w.b, t: null, last: 0 };
+    h.classList.add('drag');
+  });
+  document.addEventListener('pointermove', e => {
+    if (!d) return;
+    const r = d.strip.getBoundingClientRect(), f = Math.min(1, Math.max(0, (e.clientX - r.left) / (r.width || 1)));
+    let t = d.r0 + f * (d.r1 - d.r0);
+    t = d.which === 's' ? Math.min(t, d.b - 1) : Math.max(t, d.a + 1);
+    t = Math.max(d.r0, Math.min(d.r1, t)); d.t = t;
+    const pc = x => ((x - d.r0) / ((d.r1 - d.r0) || 1)) * 100, a = d.which === 's' ? t : d.a, b = d.which === 'e' ? t : d.b;
+    d.h.style.left = pc(t) + '%';
+    const band = d.strip.querySelector('.seq-band'); band.style.left = pc(a) + '%'; band.style.width = (pc(b) - pc(a)) + '%';
+    const du = document.getElementById('seqdur'); if (du) du.textContent = Math.round(b - a);
+    if (S.videoReady && Date.now() - d.last > 120) { d.last = Date.now(); const v = V(); v.pause(); S.playWin = null; v.currentTime = t; }
+  });
+  const fin = e => {
+    if (!d) return;
+    const x = d; d = null; x.h.classList.remove('drag');
+    if (e.type === 'pointercancel' || x.t == null) { renderBanner(); return; }
+    if (x.which === 's') x.p.offS = x.p.start - x.t; else x.p.offE = x.t - x.p.end;
+    x.p.updated = Date.now(); saveMatch(); renderJournal(); renderTimeline();
+    const n = seqWin(x.p); seqPlay(x.p.id, x.which === 's' ? n.a : Math.max(n.a, n.b - 4));
+  };
+  document.addEventListener('pointerup', fin);
+  document.addEventListener('pointercancel', fin);
+})();
