@@ -37,10 +37,10 @@ const saveRoster = () => { touchPrefs(); return DB.put('kv', { key: 'roster', va
 const saveMatch = () => { if (!S.m) return; S.m.updated = Date.now(); Cloud.queue(S.m); return DB.put('matches', S.m).catch(warnStore); };
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, ms) {
   const t = $('#toast');
   t.textContent = msg; t.classList.add('on');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2600);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), ms || 2600);
 }
 
 /* ---------- recherche dans les listes ---------- */
@@ -99,6 +99,13 @@ function setView(v) {
   renderBanner();
 }
 
+const verBadge = () => `<button class="ver" type="button" data-act="version" title="Version de l’application">v${APP_VERSION}</button>`;
+/* vérifie que la copie gardée en mémoire est bien celle de cette version */
+async function checkVersion() {
+  let cur = '';
+  try { cur = (await caches.keys()).filter(k => k.startsWith('hb-analyse-')).sort().pop() || ''; } catch (e) { return null; }
+  return cur ? cur === APP_CACHE : null;
+}
 function renderBar() {
   const bar = $('#bar');
   const back = '<button class="btn" type="button" data-act="home">‹ Matchs</button>';
@@ -108,7 +115,7 @@ function renderBar() {
       <button class="btn" type="button" data-act="stats">Statistiques</button>
       <button class="btn" type="button" data-act="settings">Réglages</button>
       <button class="btn" type="button" data-act="backup">Sauvegarder</button>
-      <button class="btn" type="button" data-act="import">Restaurer</button>`;
+      <button class="btn" type="button" data-act="import">Restaurer</button>${verBadge()}`;
   } else if (S.view === 'match') {
     bar.innerHTML = `${back}
       <div><h1>HBCCS vs ${esc(S.m.adversaire)}</h1><div class="sub">${fmtD(S.m.date)}</div></div>
@@ -116,11 +123,12 @@ function renderBar() {
       <span class="grow"></span>
       <button class="btn" type="button" data-act="sheet">Feuille de match</button>
       <button class="btn" type="button" data-act="stats">Statistiques</button>
-      <button class="btn" type="button" data-act="csv">Export CSV</button>`;
+      <button class="btn" type="button" data-act="csv">Export CSV</button>${verBadge()}`;
   } else {
     const t = ({ roster: 'Effectif', stats: 'Statistiques' })[S.view] || 'Réglages';
-    bar.innerHTML = `${back}<h1>${t}</h1>`;
+    bar.innerHTML = `${back}<h1>${t}</h1><span class="grow"></span>${verBadge()}`;
   }
+  checkVersion().then(ok => { const b = bar.querySelector('.ver'); if (b && ok === false) { b.classList.add('old'); b.textContent = 'v' + APP_VERSION + ' ⚠'; } });
 }
 
 /* ----- accueil ----- */
@@ -676,6 +684,7 @@ document.addEventListener('click', e => {
     case 'speed': S.speedIdx = (S.speedIdx + 1) % SPEEDS.length; v.playbackRate = SPEEDS[S.speedIdx]; $('#speedbtn').textContent = SPEEDS[S.speedIdx].toString().replace('.', ',') + '×'; break;
     case 'goto': if (S.videoReady) { v.currentTime = Number(d.t); } else toast('Choisis d’abord la vidéo du match.'); break;
 
+    case 'version': checkVersion().then(ok => toast('Version ' + APP_VERSION + (ok === false ? ' · mise à jour en cours : ferme et rouvre l’app' : ok ? ' · à jour' : ''), 4000)); break;
     case 'mark': addMark(d.type); break;
     case 'marksbox': S.marksBox = !S.marksBox; renderMarks(); break;
     case 'delmark': S.m.marks = S.m.marks.filter(x => x.id !== d.id); saveMatch(); renderMarks(); renderTimeline(); renderJournal(); updateTime(v.currentTime || 0); break;

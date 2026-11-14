@@ -281,3 +281,6 @@ body.fs #seqbar{display:none!important}
 .mbtn.big b{font-size:15px}
 .mbtn.mmore{min-height:56px;background:none}
 @media (max-width:560px){.mquick{grid-template-columns:repeat(2,minmax(0,1fr))}.mbtn.mmore{grid-column:1/-1;min-height:40px}}
+
+.ver{min-height:32px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:var(--raised);color:var(--muted);font-size:13px;font-weight:700}
+.ver.old{border-color:var(--accent);color:var(--accent)}

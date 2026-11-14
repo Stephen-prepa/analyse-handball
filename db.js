@@ -1,6 +1,10 @@
 'use strict';
 /* Stockage local (IndexedDB) + valeurs par défaut */
 
+/* numéro de version affiché dans l'app : à changer à chaque livraison (et le nom du cache dans sw.js) */
+const APP_VERSION = '3i';
+const APP_CACHE = 'hb-analyse-v10';
+
 const DB = (() => {
   let db;
   const open = () => db ? Promise.resolve(db) : new Promise((res, rej) => {
