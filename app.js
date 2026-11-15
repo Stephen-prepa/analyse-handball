@@ -132,32 +132,12 @@ function renderBar() {
 }
 
 /* ----- accueil ----- */
-function renderHome() {
-  const ms = [...S.matches].sort((a, b) => (b.date + b.created).localeCompare(a.date + a.created));
-  $('#home').innerHTML = `<div class="page">
-    <div class="btnrow" style="margin-bottom:14px">
-      <button class="btn primary" type="button" data-act="pickmatch">Choisir un match</button>
-      <button class="btn" type="button" data-act="newmatch">Nouveau match (saisie libre)</button>
-    </div>
-    ${ms.length ? ms.map(m => `
-      <div class="matchcard">
-        <div class="i"><b>HBCCS vs ${esc(m.adversaire)}</b>
-          <div class="muted">${fmtD(m.date)}${m.score && m.score[0] != null ? ' · ' + m.score[0] + '-' + m.score[1] : ''} · ${m.tags.length} actions · ${m.possessions.length} possessions</div></div>
-        <button class="btn primary" type="button" data-act="openmatch" data-id="${m.id}">Ouvrir</button>
-        <button class="btn danger small" type="button" data-act="delmatch" data-id="${m.id}">Supprimer</button>
-      </div>`).join('') :
-      `<p class="muted">Aucun match pour l’instant. Crée-en un pour commencer.</p>`}
-    ${Cloud.session ? '' : `<p class="hint">Connecte-toi (Réglages) pour récupérer les matchs et effectifs de ton application et sauvegarder en ligne.</p>`}
-    ${S.roster.length || Cloud.session ? '' : `<p class="hint">Ou saisis ton effectif à la main (bouton « Effectif » en haut).</p>`}
-    <p class="hint">Les vidéos restent sur l’appareil. Les données sont enregistrées dans cette application : utilise « Sauvegarder » régulièrement.</p>
-  </div>`;
-}
 
 /* ----- match ----- */
 function renderMatch() {
   renderMarks(); renderTimeline(); renderJournal(); renderPanel();
   $('#novideo').hidden = S.videoReady;
-  $('#novideo-name').textContent = S.m.videoName && !S.videoReady ? 'Dernière vidéo utilisée : ' + S.m.videoName : '';
+  $('#novideo-name').textContent = S.m.videoName && !S.videoReady ? 'Dernière vidéo utilisée : ' + S.m.videoName + (S.m.videoNote ? ' · Emplacement noté : ' + S.m.videoNote : '') : '';
   updateTime(V().currentTime || 0);
 }
 
@@ -455,6 +435,7 @@ function openMatch(id) {
   S.player = null; S.lastTag = null; lastT = -1;
   S.rq.cur = null; S.rq.undoId = null; S.rq.lastSecs = null; S.seqSel = null; S.playWin = null; setFs(false);
   unloadVideo();
+  S.m.opened = Date.now(); DB.put('matches', S.m).catch(() => { });
   setView('match');
   if (!S.m.sheet.length && S.roster.length) dlgSheet();
 }
@@ -623,6 +604,10 @@ document.addEventListener('click', e => {
       S.matches.push(m); DB.put('matches', m).catch(warnStore); closeDlg(); openMatch(m.id); break;
     }
     case 'openmatch': openMatch(d.id); break;
+    case 'homeseq': { openMatch(d.m); S.seqSel = d.id; S.afterVideo = d.id; renderBanner(); toast('Choisis la vidéo du match pour revoir cette séquence.', 4000); break; }
+    case 'matchinfo': dlgMatchInfo(d.id); break;
+    case 'matchcsv': { const m = S.matches.find(x => x.id === d.id); if (m) download(`${slug(m.date + '-hbccs-' + m.adversaire)}.csv`, buildCSV(m), 'text/csv;charset=utf-8'); break; }
+    case 'delmatch2': { const m = S.matches.find(x => x.id === d.id); if (m && confirm(`Supprimer le match contre ${m.adversaire} et toutes ses données ?`)) { S.matches = S.matches.filter(x => x.id !== d.id); DB.del('matches', d.id).catch(warnStore); Cloud.remove(d.id); closeDlg(); renderHome(); } break; }
     case 'delmatch': {
       const m = S.matches.find(x => x.id === d.id);
       if (confirm(`Supprimer le match contre ${m.adversaire} et toutes ses données ?`)) {
@@ -807,6 +792,7 @@ function bindStatic() {
     S.videoReady = true; $('#novideo').hidden = true;
     v.playbackRate = SPEEDS[S.speedIdx];
     renderTimeline(); updateTime(v.currentTime || 0);
+    if (S.afterVideo) { const id = S.afterVideo; S.afterVideo = null; setTimeout(() => { try { seqPlay(id); } catch (e) { } }, 300); }
   });
   v.addEventListener('error', () => {
     if (!v.getAttribute('src')) return;
