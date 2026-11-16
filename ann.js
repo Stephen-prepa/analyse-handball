@@ -3,8 +3,31 @@
 const ANN_COLS = ['#FF4D4D', '#FFD83D', '#3DDC97', '#5BC0EB', '#FFFFFF'];
 const ANN_NAMES = { circle: 'Cercle', spot: 'Spot', arrow: 'Flèche', line: 'Trait' };
 const ANN_ANIM = { fixe: 'Fixe', tourne: 'Pointillés qui tournent', clignote: 'Clignote', pulse: 'Pulsation', trace: 'Se dessine' };
-const A = () => (S.ann = S.ann || { on: false, tool: 'circle', col: ANN_COLS[0], anim: 'fixe', dur: 4, sel: null });
-let annDrag = null, annMove = null;
+const A = () => (S.ann = S.ann || { on: false, tool: 'circle', col: ANN_COLS[0], anim: 'fixe', dur: 4, freeze: 'manual', undo: [], sel: null });
+let annDrag = null, annMove = null, annFr = null, annLast = null, annHold = null;
+const annFired = new Set();
+const FRZ = { 0: 'Aucun', manual: 'Jusqu’à Lecture', 2: '2 s', 4: '4 s', 6: '6 s' };
+function annPush() { const st = A(); st.undo.push(JSON.stringify(annList())); if (st.undo.length > 30) st.undo.shift(); }
+function annUndo() {
+  const st = A(); if (!st.undo.length) { toast('Rien à annuler.'); return; }
+  const id = st.sel && st.sel.id; S.m.ann = JSON.parse(st.undo.pop()); st.sel = S.m.ann.find(x => x.id === id) || null; annSave(); renderAnnTools();
+}
+/* arrêt sur image automatique : on détecte le passage de l'instant d'apparition pendant la lecture */
+function annFreezeTick(v, cv) {
+  const t = v.currentTime, last = annLast; annLast = t;
+  if (!v.paused) annHold = null;
+  for (const id of [...annFired]) { const a = annList().find(x => x.id === id); if (!a || t < a.t0 - .05) annFired.delete(id); }
+  if (v.paused) { if (annHold && annHold.until && performance.now() >= annHold.until) { annHold = null; v.play().catch(() => {}); } return; }
+  if (v.seeking || last === null || t < last || t - last > 1) return;
+  for (const a of annList()) {
+    if (!a.freeze || annFired.has(a.id)) continue;
+    if (last < a.t0 && t >= a.t0) {
+      annFired.add(a.id); v.pause(); v.currentTime = a.t0 + .02;
+      annHold = { id: a.id, until: a.freeze === 'manual' ? 0 : performance.now() + Number(a.freeze) * 1000 };
+      break;
+    }
+  }
+}
 
 const annList = () => (S.m && S.m.ann) || [];
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -59,8 +82,15 @@ function annFrame() {
   if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, cv.clientWidth, cv.clientHeight);
   const list = annList(); if (!list.length && !annDrag) return;
-  const v = V(), t = v.currentTime, R = annRect(cv), phase = v.paused ? performance.now() / 1000 : 0;
+  const v = V(); annFreezeTick(v, cv);
+  const t = v.currentTime, R = annRect(cv), phase = v.paused ? performance.now() / 1000 : 0;
+  const ph = document.getElementById('annph'), fr = document.getElementById('annfr');
+  if (ph && fr) { const ra = Number(fr.dataset.a), rb = Number(fr.dataset.b); ph.style.left = 'calc(' + Math.max(0, Math.min(1, (t - ra) / ((rb - ra) || 1))) + ' * (100% - 12px))'; }
   list.forEach(a => annDraw(g, a, t, R, phase, st.on && a === st.sel));
+  if (annHold && v.paused) {
+    const secs = annHold.until ? Math.max(0, Math.ceil((annHold.until - performance.now()) / 1000)) : 0, txt = annHold.until ? '⏸ Arrêt sur image · reprise dans ' + secs + ' s' : '⏸ Arrêt sur image · appuie sur Lecture pour continuer';
+    g.save(); g.font = 'bold 16px sans-serif'; g.textAlign = 'center'; const wd = g.measureText(txt).width + 24; g.fillStyle = '#000b'; g.fillRect(cv.clientWidth / 2 - wd / 2, 10, wd, 30); g.fillStyle = '#fff'; g.fillText(txt, cv.clientWidth / 2, 31); g.restore();
+  }
   if (annDrag) {
     g.save(); g.strokeStyle = st.col; g.lineWidth = 4; g.setLineDash([10, 8]); const d = annDrag;
     if (st.tool === 'circle' || st.tool === 'spot') { g.beginPath(); g.arc(d.x0, d.y0, Math.hypot(d.x - d.x0, d.y - d.y0), 0, 7); g.stroke(); }
@@ -83,9 +113,24 @@ function renderAnnTools() {
       <span class="ann-l">Couleur</span>${ANN_COLS.map(c => `<button class="ann-col ${st.col === c ? 'on' : ''}" type="button" data-ann="col:${c}" style="background:${c}" aria-label="Couleur"></button>`).join('')}
       <span class="ann-l">Reste</span>${[2, 4, 6].map(d => b('dur', d, d + ' s', st.dur === d)).join('')}</div>
     <div class="ann-row"><span class="ann-l">Animation</span>${Object.keys(ANN_ANIM).map(k => b('anim', k, ANN_ANIM[k], st.anim === k)).join('')}</div>
-    <div class="ann-row">${sel ? `<span class="ann-l">Sélection</span><button class="btn" type="button" data-ann="end:1">↝ Position de fin ici</button>${sel.b ? '<button class="btn" type="button" data-ann="end:0">Supprimer le mouvement</button>' : ''}<button class="btn" type="button" data-ann="label:1">Texte</button><button class="btn danger" type="button" data-ann="del:1">Supprimer</button>` : '<span class="muted" style="font-size:13px">Glisse sur la vidéo pour dessiner. Touche un dessin pour le déplacer ou le modifier.</span>'}
-      <span class="grow"></span><button class="btn" type="button" data-ann="png:1">Image PNG</button><button class="btn primary" type="button" data-ann="off:1">Terminer</button></div>
-    ${list.length ? `<div class="ann-row"><span class="ann-l">Dessins</span>${list.map(a => `<button class="btn small ${a === sel ? 'primary' : ''}" type="button" data-ann="pick:${a.id}">${ANN_NAMES[a.type]} · ${fmt(a.t0)}</button>`).join('')}</div>` : ''}`;
+    <div class="ann-row"><span class="ann-l">Arrêt sur image</span>${Object.keys(FRZ).map(k => b('frz', k, FRZ[k], String(sel ? (sel.freeze || 0) : (st.freeze || 0)) === k)).join('')}</div>
+    <div class="ann-row">${sel ? `<span class="ann-l">Sélection</span><button class="btn" type="button" data-ann="end:1">↝ Position de fin ici</button>${sel.b ? '<button class="btn" type="button" data-ann="end:0">Supprimer le mouvement</button>' : ''}<button class="btn" type="button" data-ann="dup:1">⧉ Dupliquer plus tard</button><button class="btn" type="button" data-ann="label:1">Texte</button><button class="btn danger" type="button" data-ann="del:1">Supprimer</button>` : '<span class="muted" style="font-size:13px">Glisse sur la vidéo pour dessiner. Touche un dessin pour le déplacer ou le modifier.</span>'}
+      <span class="grow"></span><button class="btn" type="button" data-ann="undo:1" ${st.undo.length ? '' : 'disabled'} aria-label="Annuler">↶ Annuler</button><button class="btn" type="button" data-ann="png:1">Image PNG</button><button class="btn primary" type="button" data-ann="off:1">Terminer</button></div>
+    ${annFriseHtml(list, sel)}`;
+}
+function annFriseHtml(list, sel) {
+  if (!list.length) return '';
+  const v = V(), t = v.currentTime || 0, sq = (sel && sel.sid && seqList().find(p => p.id === sel.sid)) || annSeqAt(t);
+  let ra, rb; if (sq) { const w = seqWin(sq); ra = w.a; rb = w.b; } else { ra = Math.max(0, t - 10); rb = t + 20; }
+  let items = list.filter(a => a.t1 >= ra && a.t0 <= rb); if (sel && !items.includes(sel)) items.push(sel);
+  items.forEach(a => { ra = Math.min(ra, a.t0); rb = Math.max(rb, a.t1); });
+  rb = Math.min(rb, v.duration || rb); ra = Math.max(0, ra); if (rb - ra < 4) rb = ra + 4;
+  items.sort((x, y) => x.t0 - y.t0);
+  const pc = x => ((x - ra) / (rb - ra) * 100).toFixed(2);
+  return `<div class="ann-l" style="margin-top:6px">Frise des dessins <span class="muted">· touche une barre pour la choisir, tire ses bords pour régler apparition / disparition</span></div>
+    <div class="frise" id="annfr" data-a="${ra}" data-b="${rb}"><div class="fr-ph" id="annph"></div>
+    ${items.map(a => `<div class="fr-row" data-t="1"><div class="fr-bar ${a === sel ? 'sel' : ''}" data-id="${a.id}" style="left:${pc(a.t0)}%;width:${Math.max(1.5, pc(a.t1) - pc(a.t0))}%;background:${a.col}"><i class="fr-h l" data-h="l"></i><span>${a.freeze ? '⏸ ' : ''}${ANN_NAMES[a.type]}${a.label ? ' · ' + a.label : ''}</span><i class="fr-h r" data-h="r"></i></div></div>`).join('')}
+    <div class="fr-ax"><span>${fmt(ra)}</span><span>${fmt(rb)}</span></div></div>`;
 }
 function annSet(on) {
   const st = A(); st.on = !!on; st.sel = null;
@@ -117,18 +162,25 @@ document.addEventListener('click', e => {
   const st = A();
   if (t.id === 'annbtn') { annSet(!st.on); return; }
   const [k, v] = t.dataset.ann.split(':'); const val = t.dataset.ann.slice(k.length + 1);
-  if (k === 'tool') { st.tool = val; st.sel = null; } else if (k === 'col') { st.col = val; if (st.sel) { st.sel.col = val; annSave(); } }
-  else if (k === 'anim') { st.anim = val; if (st.sel) { st.sel.anim = val; annSave(); } }
-  else if (k === 'dur') { st.dur = Number(val); if (st.sel) { st.sel.t1 = st.sel.t0 + st.dur; annSave(); } }
+  if (k === 'tool') { st.tool = val; st.sel = null; } else if (k === 'col') { st.col = val; if (st.sel) { annPush(); st.sel.col = val; annSave(); } }
+  else if (k === 'anim') { st.anim = val; if (st.sel) { annPush(); st.sel.anim = val; annSave(); } }
+  else if (k === 'dur') { st.dur = Number(val); if (st.sel) { annPush(); st.sel.t1 = st.sel.t0 + st.dur; annSave(); } }
+  else if (k === 'frz') { const f = val === 'manual' ? 'manual' : Number(val); st.freeze = f; if (st.sel) { annPush(); st.sel.freeze = f; annFired.delete(st.sel.id); annSave(); } }
+  else if (k === 'undo') { annUndo(); return; }
+  else if (k === 'dup' && st.sel) {
+    annPush(); const o = st.sel, d = JSON.parse(JSON.stringify(o)); d.id = uid(); const len = Math.max(1, o.t1 - o.t0);
+    d.a = JSON.parse(JSON.stringify(o.b || o.a)); delete d.b; d.t0 = o.t1; d.t1 = Math.min(d.t0 + len, V().duration || d.t0 + len);
+    S.m.ann = annList().concat([d]); st.sel = d; annSave(); V().pause(); V().currentTime = d.t0; toast('Copie créée à l’instant suivant. Modifie-la (déplace, change l’outil ou la couleur).', 3500);
+  }
   else if (k === 'off') { annSet(false); return; }
   else if (k === 'png') { annExportPNG(); return; }
-  else if (k === 'pick') { const a = annList().find(x => x.id === val); if (a) { st.sel = a; V().pause(); V().currentTime = a.t0; } }
-  else if (k === 'del' && st.sel) { S.m.ann = annList().filter(x => x !== st.sel); st.sel = null; annSave(); }
+  else if (k === 'pick') { const a = annList().find(x => x.id === val); if (a) { st.sel = a; V().pause(); V().currentTime = a.t0 + .02; } }
+  else if (k === 'del' && st.sel) { annPush(); S.m.ann = annList().filter(x => x !== st.sel); st.sel = null; annSave(); }
   else if (k === 'end' && st.sel) {
-    if (val === '1') { if (!st.sel.b) st.sel.b = JSON.parse(JSON.stringify(st.sel.a)); toast('Déplace le dessin à sa position de fin (la vidéo doit être plus loin dans le temps).', 3500); }
+    annPush(); if (val === '1') { if (!st.sel.b) st.sel.b = JSON.parse(JSON.stringify(st.sel.a)); toast('Déplace le dessin à sa position de fin (la vidéo doit être plus loin dans le temps).', 3500); }
     else delete st.sel.b; annSave();
   }
-  else if (k === 'label' && st.sel) { const s = prompt('Texte affiché avec le dessin (vide = aucun) :', st.sel.label || ''); if (s !== null) { st.sel.label = s.trim(); annSave(); } }
+  else if (k === 'label' && st.sel) { const s = prompt('Texte affiché avec le dessin (vide = aucun) :', st.sel.label || ''); if (s !== null) { annPush(); st.sel.label = s.trim(); annSave(); } }
   renderAnnTools();
 });
 
@@ -137,7 +189,7 @@ function annInit() {
   cv.addEventListener('pointerdown', e => {
     const st = A(); if (!st.on) return; e.preventDefault(); cv.setPointerCapture(e.pointerId);
     const p = annNorm(cv, e), v = V(), t = v.currentTime, h = annHit(p, t);
-    if (h) { st.sel = h; const geo = annGeo(h, t); annMove = { a: h, p0: p, o: JSON.parse(JSON.stringify(h.b && t > (h.t0 + h.t1) / 2 ? h.b : h.a)), toEnd: !!(h.b && t > (h.t0 + h.t1) / 2) }; renderAnnTools(); return; }
+    if (h) { st.sel = h; const geo = annGeo(h, t); annMove = { snap: JSON.stringify(annList()), a: h, p0: p, o: JSON.parse(JSON.stringify(h.b && t > (h.t0 + h.t1) / 2 ? h.b : h.a)), toEnd: !!(h.b && t > (h.t0 + h.t1) / 2) }; renderAnnTools(); return; }
     st.sel = null; const r = cv.getBoundingClientRect();
     annDrag = { x0: e.clientX - r.left, y0: e.clientY - r.top, x: e.clientX - r.left, y: e.clientY - r.top, p0: p }; renderAnnTools();
   });
@@ -146,16 +198,45 @@ function annInit() {
     if (annDrag) { const r = cv.getBoundingClientRect(); annDrag.x = e.clientX - r.left; annDrag.y = e.clientY - r.top; }
   });
   const up = e => {
-    if (annMove) { annMove = null; annSave(); return; }
+    if (annMove) { const m = annMove; annMove = null; if (JSON.stringify(annList()) !== m.snap) { A().undo.push(m.snap); annSave(); } return; }
     if (!annDrag) return; const d = annDrag; annDrag = null; const st = A(), p = annNorm(cv, e), R = annRect(cv), t = V().currentTime;
     const len = Math.hypot(p.x - d.p0.x, (p.y - d.p0.y) * R.h / R.w);
     const a = { id: uid(), sid: (annSeqAt(t) || {}).id || null, type: st.tool, col: st.col, anim: st.anim, t0: t, t1: Math.min(t + st.dur, V().duration || t + st.dur) };
     if (st.tool === 'circle' || st.tool === 'spot') a.a = { x: d.p0.x, y: d.p0.y, r: Math.max(.03, Math.hypot(p.x - d.p0.x, (p.y - d.p0.y) * R.h / R.w)) };
     else { if (len < .02) { renderAnnTools(); return; } a.a = { x: d.p0.x, y: d.p0.y, x2: p.x, y2: p.y }; }
-    S.m.ann = annList().concat([a]); st.sel = a; annSave(); renderAnnTools();
+    annPush(); if (st.freeze) a.freeze = st.freeze; S.m.ann = annList().concat([a]); st.sel = a; annFired.add(a.id); annSave(); renderAnnTools();
   };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', () => { annMove = null; annDrag = null; });
+  const box = document.getElementById('anntools');
+  box.addEventListener('pointerdown', e => {
+    const bar = e.target.closest('.fr-bar'), fr = document.getElementById('annfr');
+    if (!fr) return;
+    const rowEl = fr.querySelector('.fr-row'), W = rowEl ? rowEl.clientWidth : 1, ra = Number(fr.dataset.a), rb = Number(fr.dataset.b);
+    if (!bar) { const row = e.target.closest('.fr-row'); if (row) { const r = row.getBoundingClientRect(); V().pause(); V().currentTime = ra + (e.clientX - r.left) / r.width * (rb - ra); } return; }
+    const a = annList().find(x => x.id === bar.dataset.id); if (!a) return; e.preventDefault();
+    const h = e.target.dataset && e.target.dataset.h;
+    annFr = { a, bar, h: h || 'm', x0: e.clientX, t0: a.t0, t1: a.t1, W, ra, rb, span: rb - ra, snap: JSON.stringify(annList()), moved: false };
+  });
+  document.addEventListener('pointermove', e => {
+    if (!annFr) return; const f = annFr, dt = (e.clientX - f.x0) / f.W * f.span; if (Math.abs(e.clientX - f.x0) > 3) f.moved = true; if (!f.moved) return;
+    const dur = V().duration || f.rb;
+    if (f.h === 'm') { const len = f.t1 - f.t0; f.a.t0 = Math.max(0, Math.min(dur - len, f.t0 + dt)); f.a.t1 = f.a.t0 + len; }
+    else if (f.h === 'l') f.a.t0 = Math.max(0, Math.min(f.t1 - .5, f.t0 + dt));
+    else f.a.t1 = Math.min(dur, Math.max(f.t0 + .5, f.t1 + dt));
+    const pc = x => ((x - f.ra) / f.span * 100); f.bar.style.left = pc(f.a.t0) + '%'; f.bar.style.width = Math.max(1.5, pc(f.a.t1) - pc(f.a.t0)) + '%';
+  });
+  const frUp = () => {
+    if (!annFr) return; const f = annFr; annFr = null; const st = A();
+    if (f.moved) { if (JSON.stringify(annList()) !== f.snap) { st.undo.push(f.snap); annFired.delete(f.a.id); annSave(); } }
+    else { st.sel = f.a; V().pause(); V().currentTime = f.a.t0 + .02; }
+    renderAnnTools();
+  };
+  document.addEventListener('pointerup', frUp); document.addEventListener('pointercancel', frUp);
   requestAnimationFrame(annFrame);
 }
 document.addEventListener('DOMContentLoaded', annInit);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.ann && S.ann.on) annSet(false); });
+document.addEventListener('keydown', e => {
+  if (!(S.ann && S.ann.on)) return;
+  if (e.key === 'Escape') annSet(false);
+  else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); annUndo(); }
+});

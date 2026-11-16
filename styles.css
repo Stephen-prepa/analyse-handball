@@ -341,3 +341,13 @@ body.fs #seqbar{display:none!important}
 #right.annon #panel{display:none}
 
 .ann-row{gap:8px}
+
+/* v3r : frise des dessins */
+.frise{position:relative;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px;margin-top:4px;touch-action:none}
+.fr-row{position:relative;height:30px;margin:3px 0;background:var(--panel);border-radius:6px}
+.fr-bar{position:absolute;top:2px;bottom:2px;border-radius:6px;color:#000;font-size:12px;font-weight:700;display:flex;align-items:center;padding:0 12px;overflow:hidden;white-space:nowrap;cursor:grab;opacity:.8;min-width:14px}
+.fr-bar.sel{opacity:1;outline:2px solid #fff}
+.fr-h{position:absolute;top:0;bottom:0;width:12px;background:rgba(0,0,0,.35);cursor:ew-resize}
+.fr-h.l{left:0;border-radius:6px 0 0 6px}.fr-h.r{right:0;border-radius:0 6px 6px 0}
+.fr-ph{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);z-index:3;pointer-events:none;margin-left:6px}
+.fr-ax{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
