@@ -18,7 +18,7 @@ function plGo(i) {
     S.afterVideo = it.pid; S.seqSel = it.pid;
     toast('Choisis la vidéo du match « ' + S.m.adversaire + ' » : la lecture démarre ensuite.', 5000);
     renderBanner();
-  } else { seqPlay(it.pid); }
+  } else { if (S.view !== 'match') setView('match'); seqPlay(it.pid); }
   plRender();
 }
 function plAdvance() {
@@ -26,7 +26,7 @@ function plAdvance() {
   if (pl.i >= pl.items.length - 1) { pl.auto = false; toast('Fin de la séance : ' + pl.items.length + ' séquences vues.', 4000); plRender(); return; }
   const next = pl.items[pl.i + 1];
   pl.i++; plRender();
-  if (S.m && S.m.id === next.mid && S.videoReady) setTimeout(() => { if (S.pl === pl && pl.auto) seqPlay(next.pid); }, 800);
+  if (S.m && S.m.id === next.mid && S.videoReady) { if (S.view !== 'match') setView('match'); setTimeout(() => { if (S.pl === pl && pl.auto) seqPlay(next.pid); }, 800); }
   else { S.afterVideo = next.pid; plGo(pl.i); }
 }
 function plStop() { S.pl = null; S.afterVideo = null; plRender(); }
