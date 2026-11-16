@@ -434,7 +434,7 @@ function openMatch(id) {
   S.m = S.matches.find(x => x.id === id);
   S.player = null; S.lastTag = null; lastT = -1;
   S.rq.cur = null; S.rq.undoId = null; S.rq.lastSecs = null; S.seqSel = null; S.playWin = null; setFs(false);
-  unloadVideo();
+  unloadVideo(); if (S.ann) { S.ann.on = false; S.ann.sel = null; }
   S.m.opened = Date.now(); DB.put('matches', S.m).catch(() => { });
   setView('match');
   if (!S.m.sheet.length && S.roster.length) dlgSheet();
@@ -600,7 +600,7 @@ document.addEventListener('click', e => {
     case 'newmatch': dlgNewMatch(); break;
     case 'creatematch': {
       const m = { id: uid(), adversaire: $('#nm-adv').value.trim() || 'Adversaire', date: $('#nm-date').value || today(), created: Date.now(),
-        videoName: null, videoSize: null, sheet: [], marks: [], tags: [], possessions: [], open: null };
+        videoName: null, videoSize: null, sheet: [], marks: [], tags: [], possessions: [], ann: [], open: null };
       S.matches.push(m); DB.put('matches', m).catch(warnStore); closeDlg(); openMatch(m.id); break;
     }
     case 'openmatch': openMatch(d.id); break;

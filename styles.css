@@ -324,3 +324,11 @@ body.fs #seqbar{display:none!important}
 .up{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:center}
 .up:first-child{border-top:0;padding-top:0}.up:last-child{padding-bottom:0}
 @media(max-width:860px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+
+/* annotations */
+#annc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;touch-action:none;z-index:2}
+#anntools{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.ann-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ann-l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 2px 0 6px}
+.ann-col{width:32px;height:32px;border-radius:50%;border:3px solid transparent;padding:0}
+.ann-col.on{border-color:#fff}
