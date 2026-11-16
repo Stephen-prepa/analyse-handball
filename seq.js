@@ -74,7 +74,15 @@ function renderFsCol() {
 function seqPlay(id, from) {
   const p = seqList().find(x => x.id === id); if (!p) return;
   S.seqSel = id;
-  if (S.videoReady) { const w = seqWin(p), v = V(); v.currentTime = from != null ? Math.min(Math.max(w.a, from), w.b - 0.5) : w.a; S.playWin = { id, b: w.b }; playV(); }
+  if (S.videoReady) {
+    const w = seqWin(p), v = V(), target = from != null ? Math.min(Math.max(w.a, from), w.b - 0.5) : w.a;
+    /* on attend que l'image soit bien positionnée avant de lancer : sinon certains navigateurs jouent le son sans afficher l'image */
+    S.playWin = null;
+    let started = false;
+    const start = () => { if (started) return; started = true; v.removeEventListener('seeked', start); S.playWin = { id, b: w.b }; playV(); };
+    if (Math.abs(v.currentTime - target) < 0.05 && v.readyState >= 2) start();
+    else { v.addEventListener('seeked', start); v.currentTime = target; setTimeout(start, 1500); }
+  }
   else toast('Choisis d’abord la vidéo du match.');
   renderBanner(); renderFsCol();
 }

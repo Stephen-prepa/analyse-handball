@@ -792,7 +792,12 @@ function bindStatic() {
     S.videoReady = true; $('#novideo').hidden = true;
     v.playbackRate = SPEEDS[S.speedIdx];
     renderTimeline(); updateTime(v.currentTime || 0);
-    if (S.afterVideo) { const id = S.afterVideo; S.afterVideo = null; setTimeout(() => { try { seqPlay(id); } catch (e) { } }, 300); }
+    if (S.afterVideo) {
+      const id = S.afterVideo; S.afterVideo = null;
+      const go = () => { try { seqPlay(id); } catch (e) { } };
+      /* attendre la première image avant de lancer la lecture */
+      if (v.readyState >= 2) setTimeout(go, 200); else { v.addEventListener('loadeddata', () => setTimeout(go, 200), { once: true }); setTimeout(() => { if (!S.playWin) go(); }, 2500); }
+    }
   });
   v.addEventListener('error', () => {
     if (!v.getAttribute('src')) return;
