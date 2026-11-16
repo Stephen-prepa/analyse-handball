@@ -14,7 +14,7 @@ const fmtL = t => { if (t == null || isNaN(t)) return '--:--:--'; const s = Math
 const fmtD = d => { const [y, m, j] = String(d).split('-'); return j && m ? `${j}/${m}/${y}` : d; };
 
 const S = {
-  view: 'home', settings: null, roster: [], matches: [], m: null, prefsUpdated: 0, rq: { cur: null, undoId: null, undoUntil: 0, lastSecs: null }, seqSel: null, seqOpen: true, playWin: null, fs: false, sf: { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '' },
+  view: 'home', settings: null, roster: [], matches: [], m: null, prefsUpdated: 0, rq: { cur: null, undoId: null, undoUntil: 0, lastSecs: null }, seqSel: null, seqOpen: true, playWin: null, fs: false, sf: { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '', phase: '', inc: '' },
   player: null, lastTag: null, videoReady: false, url: null, speedIdx: 2
 };
 const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
@@ -88,7 +88,7 @@ const gameLabel = (m, t) => { const g = gameInfo(m, t); return g ? fmt(g.t) : 'â
 
 /* ---------- vues ---------- */
 function setView(v) {
-  S.view = v;
+  S.view = v; if (v === 'home') S.pl = null;
   $$('.view').forEach(el => el.hidden = el.id !== v);
   renderBar();
   if (v === 'home') renderHome();
@@ -644,7 +644,7 @@ document.addEventListener('click', e => {
     case 'rqresadd': { const l = S.settings.rapide.res[d.side] || (S.settings.rapide.res[d.side] = []); const cand = S.settings.issues.find(x => !l.includes(x.id)); if (cand) { l.push(cand.id); saveSettings(); renderSettings(); } break; }
     case 'rqresdel': S.settings.rapide.res[d.side].splice(Number(d.i), 1); saveSettings(); renderSettings(); break;
     case 'rqresmove': if (moveInArray(S.settings.rapide.res[d.side], Number(d.i), Number(d.d))) { saveSettings(); renderSettings(); } break;
-    case 'sfreset': S.sf = { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '' }; renderStats(); break;
+    case 'sfreset': S.sf = { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '', phase: '', inc: '' }; renderStats(); break;
     case 'csvsel': download(`analyse-${today()}.csv`, buildCSV(statsMatches()), 'text/csv;charset=utf-8'); break;
     case 'pickmatch': dlgPick(); break;
     case 'cloudrefresh': dlgPick(); break;

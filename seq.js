@@ -106,7 +106,7 @@ function seqTick() {
   const pw = S.playWin; if (!pw) return;
   const v = V();
   if (v.paused) { S.playWin = null; return; }
-  if (v.currentTime >= pw.b) { v.pause(); S.playWin = null; }
+  if (v.currentTime >= pw.b) { v.pause(); S.playWin = null; if (S.pl && S.pl.auto) plAdvance(); }
 }
 
 /* raccourcis clavier : la touche de chaque action se règle dans Réglages */

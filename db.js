@@ -2,8 +2,8 @@
 /* Stockage local (IndexedDB) + valeurs par défaut */
 
 /* numéro de version affiché dans l'app : à changer à chaque livraison (et le nom du cache dans sw.js) */
-const APP_VERSION = '3k';
-const APP_CACHE = 'hb-analyse-v12';
+const APP_VERSION = '3l';
+const APP_CACHE = 'hb-analyse-v13';
 
 const DB = (() => {
   let db;
