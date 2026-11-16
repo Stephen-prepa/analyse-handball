@@ -74,22 +74,22 @@ function annSeqAt(t) { return seqList().find(p => { const w = seqWin(p); return 
 function renderAnnTools() {
   const box = document.getElementById('anntools'), st = A(); if (!box) return;
   box.hidden = !st.on; document.getElementById('annbtn').classList.toggle('primary', st.on);
-  const vw = document.getElementById('vidwrap'); if (vw) vw.classList.toggle('annon', st.on);
+  const rt = document.getElementById('right'); if (rt) rt.classList.toggle('annon', st.on);
   const cv = document.getElementById('annc'); cv.style.pointerEvents = st.on ? 'auto' : 'none'; cv.style.cursor = st.on ? 'crosshair' : '';
   if (!st.on) return;
   const sel = st.sel, b = (attr, val, txt, on) => `<button class="btn small ${on ? 'primary' : ''}" type="button" data-ann="${attr}:${val}">${txt}</button>`;
   const list = [...annList()].sort((a, b) => a.t0 - b.t0);
-  box.innerHTML = `<div class="ann-row ann-tr"><button class="btn small" type="button" data-act="seek" data-d="-5">−5 s</button><button class="btn small" type="button" data-act="seek" data-d="-1">−1 s</button><button class="btn small" type="button" data-act="frame" data-d="-1">−1 img</button><button class="btn small primary" type="button" data-act="play">▶ / ⏸</button><button class="btn small" type="button" data-act="frame" data-d="1">+1 img</button><button class="btn small" type="button" data-act="seek" data-d="1">+1 s</button><button class="btn small" type="button" data-act="seek" data-d="5">+5 s</button></div>
-    <div class="ann-row"><span class="ann-l">Outil</span>${Object.keys(ANN_NAMES).map(k => b('tool', k, ANN_NAMES[k], st.tool === k)).join('')}
+  box.innerHTML = `<div class="ann-row"><span class="ann-l">Outil</span>${Object.keys(ANN_NAMES).map(k => b('tool', k, ANN_NAMES[k], st.tool === k)).join('')}
       <span class="ann-l">Couleur</span>${ANN_COLS.map(c => `<button class="ann-col ${st.col === c ? 'on' : ''}" type="button" data-ann="col:${c}" style="background:${c}" aria-label="Couleur"></button>`).join('')}
       <span class="ann-l">Reste</span>${[2, 4, 6].map(d => b('dur', d, d + ' s', st.dur === d)).join('')}</div>
     <div class="ann-row"><span class="ann-l">Animation</span>${Object.keys(ANN_ANIM).map(k => b('anim', k, ANN_ANIM[k], st.anim === k)).join('')}</div>
-    <div class="ann-row">${sel ? `<span class="ann-l">Sélection</span><button class="btn small" type="button" data-ann="end:1">↝ Position de fin ici</button>${sel.b ? '<button class="btn small" type="button" data-ann="end:0">Supprimer le mouvement</button>' : ''}<button class="btn small" type="button" data-ann="label:1">Texte</button><button class="btn small danger" type="button" data-ann="del:1">Supprimer</button>` : '<span class="muted" style="font-size:13px">Glisse sur la vidéo pour dessiner. Touche un dessin pour le déplacer ou le modifier.</span>'}
-      <span class="grow"></span><button class="btn small" type="button" data-ann="png:1">Image PNG</button><button class="btn small primary" type="button" data-ann="off:1">Terminer</button></div>
+    <div class="ann-row">${sel ? `<span class="ann-l">Sélection</span><button class="btn" type="button" data-ann="end:1">↝ Position de fin ici</button>${sel.b ? '<button class="btn" type="button" data-ann="end:0">Supprimer le mouvement</button>' : ''}<button class="btn" type="button" data-ann="label:1">Texte</button><button class="btn danger" type="button" data-ann="del:1">Supprimer</button>` : '<span class="muted" style="font-size:13px">Glisse sur la vidéo pour dessiner. Touche un dessin pour le déplacer ou le modifier.</span>'}
+      <span class="grow"></span><button class="btn" type="button" data-ann="png:1">Image PNG</button><button class="btn primary" type="button" data-ann="off:1">Terminer</button></div>
     ${list.length ? `<div class="ann-row"><span class="ann-l">Dessins</span>${list.map(a => `<button class="btn small ${a === sel ? 'primary' : ''}" type="button" data-ann="pick:${a.id}">${ANN_NAMES[a.type]} · ${fmt(a.t0)}</button>`).join('')}</div>` : ''}`;
 }
 function annSet(on) {
   const st = A(); st.on = !!on; st.sel = null;
+  if (on && S.fs) setFs(false);
   if (on) { if (!S.videoReady) { toast('Choisis d’abord la vidéo.'); st.on = false; return; } V().pause(); }
   renderAnnTools();
 }

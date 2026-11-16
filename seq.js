@@ -123,7 +123,7 @@ document.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag) || $('#dlg').open || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'Escape' && S.fs) { setFs(false); return; }
-  const ph = !e.repeat && S.settings.phases.find(p => p.key && p.key === e.key);
+  const ph = !e.repeat && !(S.ann && S.ann.on) && S.settings.phases.find(p => p.key && p.key === e.key);
   if (ph) { e.preventDefault(); rqPick('phase', ph.id); return; }
   const sc = S.settings.shortcuts, act = Object.keys(sc).find(k => sc[k] === e.key);
   if (!act) return;

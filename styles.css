@@ -327,7 +327,7 @@ body.fs #seqbar{display:none!important}
 
 /* annotations */
 #annc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;touch-action:none;z-index:2}
-#anntools{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px}
+#anntools{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:12px}
 .ann-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .ann-l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 2px 0 6px}
 .ann-col{width:32px;height:32px;border-radius:50%;border:3px solid transparent;padding:0}
@@ -338,5 +338,6 @@ body.fs #seqbar{display:none!important}
 .pl-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.pl-t{padding-left:8px;font-weight:700}
 .pl-b{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.pl-a{font-size:13px;color:var(--muted);display:flex;gap:5px;align-items:center;margin-left:6px}
 
-#vidwrap.annon .trow{display:none}
-.ann-tr{padding-bottom:6px;border-bottom:1px solid var(--line)}
+#right.annon #panel{display:none}
+
+.ann-row{gap:8px}
