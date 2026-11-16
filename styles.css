@@ -337,3 +337,6 @@ body.fs #seqbar{display:none!important}
 #plbar{background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
 .pl-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.pl-t{padding-left:8px;font-weight:700}
 .pl-b{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.pl-a{font-size:13px;color:var(--muted);display:flex;gap:5px;align-items:center;margin-left:6px}
+
+#vidwrap.annon .trow{display:none}
+.ann-tr{padding-bottom:6px;border-bottom:1px solid var(--line)}
