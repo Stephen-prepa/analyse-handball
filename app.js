@@ -136,7 +136,7 @@ function renderBar() {
 /* ----- match ----- */
 function renderMatch() {
   renderMarks(); renderTimeline(); renderJournal(); renderPanel();
-  $('#novideo').hidden = S.videoReady;
+  $('#novideo').hidden = S.videoReady; $('#savedlink').hidden = !S.m.videoLink;
   $('#novideo-name').textContent = S.m.videoName && !S.videoReady ? 'Dernière vidéo utilisée : ' + S.m.videoName + (S.m.videoNote ? ' · Emplacement noté : ' + S.m.videoNote : '') : '';
   updateTime(V().currentTime || 0);
 }
@@ -344,7 +344,7 @@ function renderSettings() {
       <div class="list-row"><label for="pm" style="flex:1">Durée d’une période (minutes)</label><input id="pm" class="w-num" type="number" min="1" max="60" value="${st.periodMinutes}" data-set="periodMinutes"></div>
       <div class="list-row"><label for="fps" style="flex:1">Images par seconde de la vidéo</label><input id="fps" class="w-num" type="number" min="10" max="60" value="${st.fps}" data-set="fps"></div>
     </div>
-    ${compteCard()}${saisieCard()}${rapideCard()}${shortcutsCard()}
+    ${compteCard()}${saisieCard()}${linkCard()}${rapideCard()}${shortcutsCard()}
     ${LISTS.map(L => `<div class="card"><div class="card-h"><h2>${L.title}</h2></div>
       ${L.key === 'phases' ? '<p class="hint">Pastille = couleur de la carte. « Touche » : clique dans la case, puis appuie sur la lettre voulue au clavier (Retour arrière pour la retirer). Utile avec un clavier (Mac) ; au doigt, les cartes suffisent.</p>' : ''}
       ${st[L.key].map((it, i) => `<div class="list-row ${L.key === 'phases' ? 'phase-row' : ''}">
@@ -418,7 +418,7 @@ function loadVideo(file) {
   const v = V();
   if (S.url) URL.revokeObjectURL(S.url);
   S.url = URL.createObjectURL(file);
-  S.videoReady = false;
+  S.videoReady = false; S.linkTry = null; v.removeAttribute('crossorigin');
   v.src = S.url; v.load();
   const m = S.m;
   if (m.videoName && m.videoName !== file.name) toast('Attention : ce n’est pas le fichier utilisé avant (' + m.videoName + ').');
@@ -427,7 +427,7 @@ function loadVideo(file) {
 function unloadVideo() {
   const v = V(); v.pause();
   if (S.url) URL.revokeObjectURL(S.url);
-  S.url = null; S.videoReady = false; v.removeAttribute('src'); v.load();
+  S.url = null; S.videoReady = false; S.linkTry = null; v.removeAttribute('crossorigin'); v.removeAttribute('src'); v.load();
 }
 
 function openMatch(id) {
@@ -737,7 +737,7 @@ document.addEventListener('click', e => {
     case 'delrow': S.settings[d.list].splice(Number(d.i), 1); saveSettings(); renderSettings(); break;
     case 'resetlists':
       if (confirm('Remettre toutes les listes aux valeurs par défaut ?')) {
-        const keep = { periods: S.settings.periods, periodMinutes: S.settings.periodMinutes, fps: S.settings.fps, saisie: S.settings.saisie, shortcuts: S.settings.shortcuts };
+        const keep = { driveKey: S.settings.driveKey, periods: S.settings.periods, periodMinutes: S.settings.periodMinutes, fps: S.settings.fps, saisie: S.settings.saisie, shortcuts: S.settings.shortcuts };
         S.settings = Object.assign(clone(DEFAULTS), keep); saveSettings(); renderSettings();
       }
       break;
@@ -800,7 +800,7 @@ function bindStatic() {
     }
   });
   v.addEventListener('error', () => {
-    if (!v.getAttribute('src')) return;
+    if (!v.getAttribute('src') || S.linkTry) return;
     S.videoReady = false; $('#novideo').hidden = false;
     toast('Cette vidéo ne se lit pas ici. Essaie un fichier MP4 (H.264).');
   });

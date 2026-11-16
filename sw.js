@@ -1,7 +1,7 @@
 'use strict';
 /* Service worker : l'application fonctionne sans connexion après la première ouverture */
-const CACHE = 'hb-analyse-v17';
-const FILES = ['./', 'index.html', 'styles.css', 'db.js', 'cloud.js', 'stats.js', 'ui2.js', 'rapide.js', 'seq.js', 'ann.js', 'play.js', 'home.js', 'app.js', 'manifest.webmanifest',
+const CACHE = 'hb-analyse-v18';
+const FILES = ['./', 'index.html', 'styles.css', 'db.js', 'cloud.js', 'stats.js', 'ui2.js', 'rapide.js', 'seq.js', 'ann.js', 'link.js', 'play.js', 'home.js', 'app.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
