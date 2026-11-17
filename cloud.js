@@ -93,9 +93,28 @@ const Cloud = (() => {
     body: [{ cle: 'reglages', valeur: { updated: S.prefsUpdated, settings: S.settings, roster: S.roster }, updated_at: new Date().toISOString() }]
   });
 
+
+  /* ----- historique des réglages (jamais de perte) ----- */
+  const core = st => JSON.stringify([((st && st.phases) || []).map(p => [p.id, p.label, p.color, p.key]), st && st.periods, st && st.periodMinutes, st && st.shortcuts]);
+  const customised = v => { try { const d = clone(DEFAULTS); return core(v.settings) !== core(d) && core(Object.assign(clone(DEFAULTS), v.settings || {})) !== core(d); } catch (e) { return false; } };
+  const sig = v => JSON.stringify([v.settings, v.roster]);
+  async function histGet() { const r = await rest('analyse_reglages?cle=eq.reglages_hist&select=valeur'); return (r.length && r[0].valeur && r[0].valeur.versions) || []; }
+  async function addHist(v) {
+    const list = await histGet(); if (list.length && sig(list[0]) === sig(v)) return;
+    list.unshift({ at: Date.now(), updated: v.updated, settings: v.settings, roster: v.roster });
+    await rest('analyse_reglages?on_conflict=cle', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal', body: [{ cle: 'reglages_hist', valeur: { versions: list.slice(0, 8) }, updated_at: new Date().toISOString() }] });
+  }
+  api.histList = () => histGet();
+  api.restoreHist = async i => {
+    const list = await histGet(), v = list[i]; if (!v) return false;
+    await addHist({ updated: S.prefsUpdated, settings: S.settings, roster: S.roster });
+    S.settings = Object.assign(clone(DEFAULTS), v.settings || {}); migrateSettings(); S.roster = v.roster || [];
+    return true;
+  };
+
   const pending = new Map(); let timer = null, ptimer = null, prefsPending = false;
   api.queue = m => { pending.set(m.id, m); clearTimeout(timer); timer = setTimeout(flush, 15000); };
-  api.queuePrefs = () => { prefsPending = true; clearTimeout(ptimer); ptimer = setTimeout(flush, 15000); };
+  api.queuePrefs = () => { prefsPending = true; clearTimeout(ptimer); ptimer = setTimeout(flush, 2000); };
   async function flush() {
     if (!session || !navigator.onLine) return;
     try {
@@ -142,25 +161,39 @@ const Cloud = (() => {
 
       const rp = await rest('analyse_reglages?cle=eq.reglages&select=valeur');
       const rv = rp.length ? rp[0].valeur : null;
-      if (rv && (rv.updated || 0) > (S.prefsUpdated || 0)) {
+      const pull = async () => {
         S.settings = Object.assign(clone(DEFAULTS), rv.settings || {});
         migrateSettings();
         S.roster = rv.roster || [];
-        S.prefsUpdated = rv.updated;
+        S.prefsUpdated = rv.updated; S.prefsBase = rv.updated;
         await DB.put('kv', { key: 'settings', value: S.settings }); await DB.put('kv', { key: 'roster', value: S.roster });
-        await DB.put('kv', { key: 'prefsUpdated', value: S.prefsUpdated }); res.down++;
-      } else if (!rv || (S.prefsUpdated || 0) > (rv.updated || 0)) {
+        await DB.put('kv', { key: 'prefsUpdated', value: S.prefsUpdated }); await DB.put('kv', { key: 'prefsBase', value: S.prefsBase });
+        res.down++; res.prefs = true;
+      };
+      const push = async () => {
         if (!S.prefsUpdated) { S.prefsUpdated = Date.now(); await DB.put('kv', { key: 'prefsUpdated', value: S.prefsUpdated }); }
-        await pushPrefs(); prefsPending = false; res.up++;
+        await pushPrefs(); prefsPending = false; S.prefsBase = S.prefsUpdated; await DB.put('kv', { key: 'prefsBase', value: S.prefsBase }); res.up++;
+      };
+      const localV = () => ({ updated: S.prefsUpdated, settings: S.settings, roster: S.roster });
+      if (!rv) await push();
+      else if (rv.updated === S.prefsBase) {
+        /* mes réglages sont basés sur la dernière version du cloud : je peux la remplacer, en gardant l'ancienne */
+        if ((S.prefsUpdated || 0) > rv.updated) { await addHist(rv); await push(); }
+      } else {
+        /* le cloud a changé depuis que cet appareil l'a vu (ou appareil neuf) : jamais d'écrasement aveugle */
+        const mine = S.prefsBase && (S.prefsUpdated || 0) > S.prefsBase && S.prefsUpdated > (rv.updated || 0);
+        if (mine) { await addHist(rv); await push(); }
+        else { if (customised(localV())) await addHist(localV()); await pull(); }
       }
       api.state.last = Date.now(); api.state.msg = '';
     } catch (e) {
       api.state.msg = e.message === 'auth' ? 'Reconnecte-toi.' : 'Synchronisation impossible pour l’instant (réseau ?).';
       res.error = true;
     }
-    api.state.busy = false; api.onChange();
+    api.state.busy = false; api.onChange(); if (res.prefs && api.onPrefs) api.onPrefs();
     return res;
   };
   return api;
 })();
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Cloud.session && navigator.onLine && Date.now() - (Cloud.state.last || 0) > 60000) Cloud.sync(true); });
 window.addEventListener('online', () => { if (Cloud.session) Cloud.sync(true); });

@@ -14,7 +14,7 @@ const fmtL = t => { if (t == null || isNaN(t)) return '--:--:--'; const s = Math
 const fmtD = d => { const [y, m, j] = String(d).split('-'); return j && m ? `${j}/${m}/${y}` : d; };
 
 const S = {
-  view: 'home', settings: null, roster: [], matches: [], m: null, prefsUpdated: 0, rq: { cur: null, undoId: null, undoUntil: 0, lastSecs: null }, seqSel: null, seqOpen: true, playWin: null, fs: false, sf: { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '', phase: '', inc: '' },
+  view: 'home', prefsBase: 0, settings: null, roster: [], matches: [], m: null, prefsUpdated: 0, rq: { cur: null, undoId: null, undoUntil: 0, lastSecs: null }, seqSel: null, seqOpen: true, playWin: null, fs: false, sf: { match: 'all', side: '', kind: '', jeu: '', issue: '', real: '', player: '', phase: '', inc: '' },
   player: null, lastTag: null, videoReady: false, url: null, speedIdx: 2
 };
 const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
@@ -344,7 +344,7 @@ function renderSettings() {
       <div class="list-row"><label for="pm" style="flex:1">Durée d’une période (minutes)</label><input id="pm" class="w-num" type="number" min="1" max="60" value="${st.periodMinutes}" data-set="periodMinutes"></div>
       <div class="list-row"><label for="fps" style="flex:1">Images par seconde de la vidéo</label><input id="fps" class="w-num" type="number" min="10" max="60" value="${st.fps}" data-set="fps"></div>
     </div>
-    ${compteCard()}${saisieCard()}${linkCard()}${rapideCard()}${shortcutsCard()}
+    ${compteCard()}${histCard()}${saisieCard()}${linkCard()}${rapideCard()}${shortcutsCard()}
     ${LISTS.map(L => `<div class="card"><div class="card-h"><h2>${L.title}</h2></div>
       ${L.key === 'phases' ? '<p class="hint">Pastille = couleur de la carte. « Touche » : clique dans la case, puis appuie sur la lettre voulue au clavier (Retour arrière pour la retirer). Utile avec un clavier (Mac) ; au doigt, les cartes suffisent.</p>' : ''}
       ${st[L.key].map((it, i) => `<div class="list-row ${L.key === 'phases' ? 'phase-row' : ''}">
@@ -844,6 +844,7 @@ async function init() {
     S.roster = (ro && ro.value) || [];
     const pu = await DB.get('kv', 'prefsUpdated');
     S.prefsUpdated = (pu && pu.value) || 0;
+    const pb = await DB.get('kv', 'prefsBase'); S.prefsBase = (pb && pb.value) || 0;
     S.matches = await DB.all('matches');
   } catch (err) {
     S.settings = clone(DEFAULTS);

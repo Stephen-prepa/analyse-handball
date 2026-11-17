@@ -52,6 +52,22 @@ async function doLogin() {
 }
 Cloud.onChange = () => { if (S.view === 'settings') renderSettings(); };
 
+Cloud.onPrefs = () => { if (S.view === 'home') renderHome(); else if (S.view === 'match') renderMatch(); else if (S.view === 'stats') renderStats(); else if (S.view === 'settings') renderSettings(); };
+function histCard() {
+  if (!Cloud.session) return '';
+  return `<div class="card"><div class="card-h"><h2>Anciennes versions de tes réglages</h2></div>
+    <p class="hint">Chaque fois que tes réglages (catégories, couleurs, touches…) sont remplacés par un autre appareil ou une remise à zéro, l’ancienne version est gardée ici (8 dernières). Tu peux la restaurer.</p>
+    <div id="histbox"><button class="btn" type="button" data-hist="load">Afficher les anciennes versions</button></div></div>`;
+}
+const histRows = list => list.length ? list.map((v, i) => { const ph = (v.settings && v.settings.phases) || []; return `<div class="row" style="padding:8px 0;border-top:1px solid var(--line);gap:10px;align-items:center"><div style="flex:1"><b>${new Date(v.at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</b> <span class="muted">· ${ph.length} catégories : ${esc(ph.map(p => p.label).join(', '))}</span></div><button class="btn" type="button" data-hist="restore:${i}">Restaurer</button></div>`; }).join('') : '<p class="hint">Aucune ancienne version pour l’instant.</p>';
+document.addEventListener('click', async e => {
+  const t = e.target.closest && e.target.closest('[data-hist]'); if (!t) return;
+  const [k, v] = t.dataset.hist.split(':'), box = document.getElementById('histbox');
+  try {
+    if (k === 'load') { t.disabled = true; box.innerHTML = histRows(await Cloud.histList()); }
+    else if (k === 'restore') { if (!confirm('Restaurer cette version ? Tes réglages actuels seront gardés dans la liste.')) return; if (await Cloud.restoreHist(Number(v))) { await saveSettings(); toast('Version restaurée.'); renderSettings(); } }
+  } catch (err) { toast('Impossible pour l’instant (réseau ?).'); if (box) box.innerHTML = ''; }
+});
 function compteCard() {
   const s = Cloud.session, st = Cloud.state;
   const last = st.last ? 'Dernière synchro : ' + new Date(st.last).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 'Pas encore synchronisé sur cet appareil.';
