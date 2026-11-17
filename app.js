@@ -123,10 +123,12 @@ function renderBar() {
       <span class="grow"></span>
       <button class="btn" type="button" data-act="sheet">Feuille de match</button>
       <button class="btn" type="button" data-act="stats">Statistiques</button>
-      <button class="btn" type="button" data-act="csv">Export CSV</button>${verBadge()}`;
+      <button class="btn" type="button" data-act="csv">Export CSV</button>
+      <button class="btn" type="button" data-act="settings">Réglages</button>${verBadge()}`;
   } else {
     const t = ({ roster: 'Effectif', stats: 'Statistiques' })[S.view] || 'Réglages';
-    bar.innerHTML = `${back}<h1>${t}</h1><span class="grow"></span>${verBadge()}`;
+    const back2 = S.view === 'settings' && S.backTo === 'match' && S.m ? '<button class="btn" type="button" data-act="backmatch">‹ Match</button>' : back;
+    bar.innerHTML = `${back2}<h1>${t}</h1><span class="grow"></span>${S.view === 'settings' ? '' : '<button class="btn" type="button" data-act="settings">Réglages</button>'}${verBadge()}`;
   }
   checkVersion().then(ok => { const b = bar.querySelector('.ver'); if (b && ok === false) { b.classList.add('old'); b.textContent = 'v' + APP_VERSION + ' ⚠'; } });
 }
@@ -596,7 +598,8 @@ document.addEventListener('click', e => {
     case 'home': unloadVideo(); S.m = null; setView('home'); break;
     case 'roster': setView('roster'); break;
     case 'roster-from-dlg': closeDlg(); setView('roster'); break;
-    case 'settings': setView('settings'); break;
+    case 'settings': S.backTo = S.view === 'match' ? 'match' : null; if (S.view === 'match' && S.videoReady) { try { V().pause(); } catch (e) { } } setView('settings'); break;
+    case 'backmatch': S.backTo = null; setView('match'); break;
     case 'newmatch': dlgNewMatch(); break;
     case 'creatematch': {
       const m = { id: uid(), adversaire: $('#nm-adv').value.trim() || 'Adversaire', date: $('#nm-date').value || today(), created: Date.now(),
