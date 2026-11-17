@@ -159,13 +159,13 @@ function renderMarks() {
   const big = (t, label) => {
     const c = marksOf(m, t), set = c.length > 0;
     const sub = (t === 'to' || t === 'rs') ? (set ? '× ' + c.length : '') : (set ? fmtL(c[0].t) : '');
-    return `<button class="mbtn big ${set ? 'set' : ''}" type="button" data-act="mark" data-type="${t}"><b>${label}</b><span>${sub || '&nbsp;'}</span></button>`;
+    return `<button class="mbtn big ${set ? 'set' : ''}" type="button" data-act="mark" data-type="${t}"><b>${label}</b>${sub ? `<span>${sub}</span>` : ''}</button>`;
   };
   const open = !!S.marksBox;
   $('#marks').innerHTML = `
-    <div class="mquick">
+    <div class="mquick"><span class="mlab">Repères</span>
       ${big('p' + ns + 's', 'Sifflet début P' + ns)}${big('to', 'Temps mort')}${big('rs', 'Reprise')}${big('p' + ne + 'e', ne === np ? 'Fin de match' : 'Fin P' + ne)}
-      <button class="mbtn mmore" type="button" data-act="marksbox" aria-expanded="${open}" aria-label="Détail des repères"><b>${open ? 'Fermer' : 'Détail'}</b><span>${open ? '▴' : '▾'}</span></button>
+      <button class="mbtn mmore" type="button" data-act="marksbox" aria-expanded="${open}" aria-label="Détail des repères"><b>${open ? 'Fermer' : 'Tous'}</b><span>${open ? '▴' : '▾'}</span></button>
     </div>
     ${open ? `<div class="sect-h" style="margin-top:10px">Tous les repères</div>
     <div class="mgrid pgrid">${Array.from({ length: np }, (_, i) => btn('p' + (i + 1) + 's') + btn('p' + (i + 1) + 'e')).join('')}</div>

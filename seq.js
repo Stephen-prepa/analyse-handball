@@ -36,8 +36,8 @@ function renderBanner() {
         <button type="button" class="seq-hd e" style="left:${pc(w.b)}%" data-hd="e" aria-label="Fin : glisser"><i></i></button>
       </div><div class="seq-strip-l"><span>${fmt(r0)}</span><span>Glisse les deux bords pour régler le début et la fin</span><span>${fmt(r1)}</span></div></div>
       <div class="seq-btns">
-        <div class="seq-bg"><span class="seq-bl">Commence plus tôt</span>${bt('s', -1, '+1 s')}${bt('s', -2, '+2 s')}${bt('s', -5, '+5 s')}${bt('s', 1, 'Couper 1 s', 'cut')}</div>
-        <div class="seq-bg"><span class="seq-bl">Finit plus tard</span>${bt('e', 1, '+1 s')}${bt('e', 2, '+2 s')}${bt('e', 5, '+5 s')}${bt('e', -1, 'Couper 1 s', 'cut')}</div>
+        <div class="seq-bg"><span class="seq-bl">Début plus tôt</span>${bt('s', -1, '+1 s')}${bt('s', -2, '+2 s')}${bt('s', -5, '+5 s')}${bt('s', 1, 'Couper 1 s', 'cut')}</div>
+        <div class="seq-bg"><span class="seq-bl">Fin plus tard</span>${bt('e', 1, '+1 s')}${bt('e', 2, '+2 s')}${bt('e', 5, '+5 s')}${bt('e', -1, 'Couper 1 s', 'cut')}</div>
       </div>
       <div class="seq-ea"><button class="btn small" type="button" data-act="seqplay" data-id="${sel.id}">▶ Revoir</button>${(sel.offS || sel.offE) ? `<button class="btn small" type="button" data-act="seqreset" data-id="${sel.id}">↺ Origine</button>` : ''}</div></div>
       <p class="seq-help">Après chaque réglage, la séquence se rejoue. Ta saisie d’origine n’est jamais modifiée.</p>`;

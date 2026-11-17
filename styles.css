@@ -351,3 +351,66 @@ body.fs #seqbar{display:none!important}
 .fr-h.l{left:0;border-radius:6px 0 0 6px}.fr-h.r{right:0;border-radius:0 6px 6px 0}
 .fr-ph{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);z-index:3;pointer-events:none;margin-left:6px}
 .fr-ax{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+
+/* ===== v3t : écran de match réorganisé (vidéo plus grande, tout plus discret) ===== */
+#match.view{grid-template-columns:minmax(0,1.8fr) minmax(320px,1fr)}
+#left{gap:6px;padding:8px 10px 0 14px}
+#vidwrap{flex:1;min-height:0;gap:6px}
+#stage{flex:1 1 auto;min-height:160px;aspect-ratio:auto;max-height:none;max-width:none;margin:0;width:100%}
+#below{flex:none;max-height:17vh;padding-bottom:6px;gap:6px}
+/* repères : une rangée discrète au-dessus de la vidéo */
+#marks{background:none;border:0;padding:0;flex:none}
+.mquick{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.mlab{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+.mquick .mbtn,.mquick .mbtn.big,.mquick .mbtn.mmore{min-height:28px;flex-direction:row;gap:6px;padding:0 10px;border-radius:8px;width:auto}
+.mquick .mbtn b,.mquick .mbtn.big b{font-size:12.5px;font-weight:600}
+.mquick .mbtn span{font-size:11px}
+.mquick .mbtn.mmore{background:none}
+#marks .sect-h{margin-top:6px}
+/* lecture : petits boutons, tout reste accessible */
+#transport{padding:4px 8px;gap:4px 8px;flex-direction:row;flex-wrap:wrap;align-items:center;border-radius:10px}
+#transport .trow{gap:4px;flex:none}
+#transport .trow .btn{min-height:30px;padding:0 8px;min-width:0;font-size:12px;border-radius:8px}
+#transport .trow .btn.play{min-width:46px;padding:0}
+#transport .trow .btn.play svg{width:18px;height:18px}
+#transport .srow{flex:1 1 220px;gap:8px}
+#scrub{min-height:26px}
+#vt{font-size:12px}
+/* journal compact sous la vidéo */
+#journal,#timeline{padding:6px 10px;border-radius:10px}
+.jr{min-height:28px;font-size:13px;grid-template-columns:48px 64px minmax(0,1fr) auto}
+/* séquences en bas : étiquettes plus petites */
+#seqbar{padding:3px 12px 5px}
+.seq-h{font-size:13px;margin-bottom:3px}
+.seq-h .btn{min-height:26px;padding:0 10px;font-size:12px}
+.seq-hint{font-size:12px}
+.seq-row{gap:6px}
+.seq-card{width:196px;border-width:1px;border-left-width:5px;padding:4px 8px;gap:1px;border-radius:9px}
+.seq-card.sel{border-left-width:5px}
+.seq-t b{font-size:12px;font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seq-m{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seq-ed{padding:4px 8px;gap:8px;border-left-width:5px;margin-bottom:4px}
+.seq-en{min-width:130px;max-width:190px}.seq-en b{font-size:13px}
+.seq-dur{font-size:15px}
+.seq-stripw{flex:1 1 220px;min-width:180px}
+.seq-strip{height:30px}.seq-hd i{height:24px;width:7px}
+.seq-strip-l{font-size:10px;margin-top:1px}
+.seq-btns{gap:3px}
+.seq-bl{min-width:92px;font-size:11px}
+.seq-bg{gap:3px}
+.seq-bg .btn{min-height:26px;min-width:40px;padding:0 6px;font-size:12px;border-radius:7px}
+.seq-help{font-size:11px;margin:0 0 2px}
+.seq-ea .btn{min-height:30px}
+/* grand écran : on garde le fonctionnement d'avant */
+#match.fs #marks{display:none}
+#match.fs #stage{max-width:none;max-height:none;margin:0}
+#match.fs #vidwrap{flex:1}
+@media (max-width:900px){
+  #vidwrap{flex:none}
+  #stage{flex:none;aspect-ratio:16/9;max-height:34vh;max-width:calc(34vh * 16 / 9);margin:0 auto}
+  #below{max-height:none}
+}
+#marks{max-height:34vh;overflow:auto}
+.jr .btn{min-height:26px;padding:0 9px;font-size:12px;border-radius:7px}
+.jr{gap:6px}
+.seq-ed + .seq-help{display:none}
