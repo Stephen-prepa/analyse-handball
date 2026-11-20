@@ -7,6 +7,8 @@ const SC_LABELS = {
 };
 const seqWin = p => ({ a: Math.max(0, p.start - (p.offS || 0)), b: p.end + (p.offE || 0) });
 const seqList = () => (S.m ? S.m.possessions : []);
+/* filtre des séquences du bas : par catégorie du marquage rapide (ou « à compléter ») */
+const seqVisible = () => { const f = S.seqFilter || [], l = seqList(); return f.length ? l.filter(p => f.includes(p.phase) || (f.includes('__inc') && p.inc)) : l; };
 const catColor = (id, snap) => { const p = id && byId(S.settings.phases, id); return (p && p.color) || snap || '#9AA8B6'; };
 const seqTitle = p => [p.phase ? lab(S.settings.phases, p.phase, p.phaseLabel) : 'Situation', p.jeu ? lab(S.settings.jeux, p.jeu, p.jeuLabel) : ''].filter(Boolean).join(' · ');
 const seqInfo = p => {
@@ -19,10 +21,15 @@ function renderBanner() {
   if (S.view !== 'match' || !S.m || S.fs) { bar.hidden = true; renderFsCol(); return; }
   bar.hidden = false;
   const list = seqList(), open = S.seqOpen !== false, sel = list.find(p => p.id === S.seqSel);
-  const head = `<div class="seq-h"><b>Séquences · ${list.length}</b><span class="muted seq-hint">${list.some(p => p.inc) ? 'bord orange = à compléter' : 'touche une carte pour la revoir'}</span><span class="grow"></span>
+  const vis = seqVisible(), f = S.seqFilter || [];
+  const cats = []; list.forEach(p => { if (p.phase && !cats.some(c => c.id === p.phase)) cats.push({ id: p.phase, label: lab(S.settings.phases, p.phase, p.phaseLabel), color: catColor(p.phase, p.phaseColor) }); });
+  const cnt = id => list.filter(p => p.phase === id).length, nInc = list.filter(p => p.inc).length;
+  const chips = list.length > 1 ? `<div class="seq-f"><button type="button" class="seq-fc ${f.length ? '' : 'on'}" data-act="seqfilter" data-f="">Toutes</button>${cats.map(c => `<button type="button" class="seq-fc ${f.includes(c.id) ? 'on' : ''}" style="--cc:${c.color}" data-act="seqfilter" data-f="${esc(c.id)}">${esc(c.label)} <i>${cnt(c.id)}</i></button>`).join('')}${nInc ? `<button type="button" class="seq-fc ${f.includes('__inc') ? 'on' : ''}" style="--cc:#F5B942" data-act="seqfilter" data-f="__inc">À compléter <i>${nInc}</i></button>` : ''}</div>` : '';
+  const head = `<div class="seq-h"><b>Séquences · ${f.length ? vis.length + '/' : ''}${list.length}</b><span class="muted seq-hint">${list.some(p => p.inc) ? 'bord orange = à compléter' : 'touche une carte pour la revoir'}</span><span class="grow"></span>
     <button class="btn small" type="button" data-act="fs">Plein écran (F)</button>
     <button class="btn small" type="button" data-act="seqtoggle" aria-label="${open ? 'Réduire le bandeau' : 'Agrandir le bandeau'}">${open ? '▾' : '▴'}</button></div>`;
   if (!open) { bar.innerHTML = head; return; }
+  const headF = head + chips;
   let editor = '<p class="seq-help">Touche une carte pour la revoir, puis règle son début et sa fin.</p>';
   if (sel) {
     const w = seqWin(sel), dur = S.videoReady && isFinite(V().duration) ? V().duration : w.b + 8;
@@ -42,9 +49,9 @@ function renderBanner() {
       <div class="seq-ea"><button class="btn small" type="button" data-act="seqplay" data-id="${sel.id}">▶ Revoir</button>${(sel.offS || sel.offE) ? `<button class="btn small" type="button" data-act="seqreset" data-id="${sel.id}">↺ Origine</button>` : ''}</div></div>
       <p class="seq-help">Après chaque réglage, la séquence se rejoue. Ta saisie d’origine n’est jamais modifiée.</p>`;
   }
-  const cards = list.map(p => `<div class="seq-card ${p.id === S.seqSel ? 'sel' : ''} ${p.inc ? 'inc' : ''}" style="--cc:${catColor(p.phase, p.phaseColor)}" data-act="seqplay" data-id="${p.id}" role="button" tabindex="0">
+  const cards = vis.map(p => `<div class="seq-card ${p.id === S.seqSel ? 'sel' : ''} ${p.inc ? 'inc' : ''}" style="--cc:${catColor(p.phase, p.phaseColor)}" data-act="seqplay" data-id="${p.id}" role="button" tabindex="0">
       <div class="seq-t"><b>${esc(seqTitle(p))}</b></div><div class="seq-m">${seqInfo(p)}${(p.offS || p.offE) ? ' · ajustée' : ''}</div></div>`).join('');
-  bar.innerHTML = head + editor + `<div class="seq-row">${cards || '<p class="hint" style="margin:6px 0">Aucune séquence. Les situations que tu marques apparaissent ici.</p>'}</div>`;
+  bar.innerHTML = headF + editor + `<div class="seq-row">${cards || `<p class="hint" style="margin:6px 0">${list.length ? 'Aucune séquence dans ce filtre. Touche « Toutes » pour tout revoir.' : 'Aucune séquence. Les situations que tu marques apparaissent ici.'}</p>`}</div>`;
   const c = bar.querySelector('.seq-card.sel'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   if (typeof journalSel === 'function') journalSel(true);
 }
@@ -107,7 +114,7 @@ function seqHere(id, which) {
 }
 function seqReset(id) { const p = seqList().find(x => x.id === id); if (!p) return; p.offS = 0; p.offE = 0; saveMatch(); renderJournal(); renderTimeline(); seqPlay(id); }
 function seqSelect(dir) {
-  const l = seqList(); if (!l.length) return;
+  let l = seqVisible(); if (!l.length) l = seqList(); if (!l.length) return;
   let i = l.findIndex(x => x.id === S.seqSel); i = i < 0 ? (dir > 0 ? 0 : l.length - 1) : Math.min(l.length - 1, Math.max(0, i + dir));
   seqPlay(l[i].id);
 }

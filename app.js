@@ -442,7 +442,7 @@ function unloadVideo() {
 function openMatch(id) {
   S.m = S.matches.find(x => x.id === id);
   S.player = null; S.lastTag = null; lastT = -1;
-  S.rq.cur = null; S.rq.undoId = null; S.rq.lastSecs = null; S.seqSel = null; S.playWin = null; setFs(false);
+  S.rq.cur = null; S.rq.undoId = null; S.rq.lastSecs = null; S.seqSel = null; S.seqFilter = []; S.playWin = null; setFs(false);
   /* même match qu'avant : on garde la vidéo déjà chargée (pas besoin de la rechoisir dans les fichiers) */
   const keep = S.kept === id && S.videoReady && V().getAttribute('src');
   if (!keep) unloadVideo();
@@ -643,6 +643,7 @@ document.addEventListener('click', e => {
     case 'rqundo': rqUndo(); break;
     case 'rqresume': rqResume(d.id); break;
     case 'seqplay': seqPlay(d.id); break;
+    case 'seqfilter': { const id = d.f; if (!id) S.seqFilter = []; else { const f = S.seqFilter || []; S.seqFilter = f.includes(id) ? f.filter(x => x !== id) : [...f, id]; } renderBanner(); break; }
     case 'seqreset': seqReset(d.id); break;
     case 'seqtoggle': S.seqOpen = S.seqOpen === false; renderBanner(); break;
     case 'scdefault': S.settings.shortcuts = clone(DEFAULTS.shortcuts); saveSettings(); renderSettings(); break;

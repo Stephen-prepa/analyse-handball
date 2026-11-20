@@ -417,3 +417,10 @@ body.fs #seqbar{display:none!important}
 
 /* v3v : séquence choisie repérée dans le journal */
 .jr.sel{outline:3px solid #F5D547;outline-offset:-3px;background:rgba(245,213,71,.14);border-radius:8px}
+
+/* v3y : filtre des séquences du bas */
+.seq-f{display:flex;gap:5px;overflow-x:auto;padding:0 0 4px;flex:none}
+.seq-fc{flex:none;min-height:26px;padding:0 10px;border-radius:999px;border:1px solid var(--cc,var(--line));background:var(--raised);color:var(--text);font-size:12px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.seq-fc i{font-style:normal;opacity:.7;font-size:11px}
+.seq-fc.on{background:var(--cc,var(--accent));color:#0E1318;font-weight:700;border-color:var(--cc,var(--accent))}
+.seq-fc.on i{opacity:.8}
