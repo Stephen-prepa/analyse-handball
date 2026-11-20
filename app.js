@@ -206,6 +206,13 @@ function renderTimeline() {
   updateTime(V().currentTime || 0);
 }
 
+/* met en évidence (liseret jaune) dans le journal la séquence choisie en bas */
+function journalSel(scroll) {
+  const j = document.getElementById('journal'); if (!j) return;
+  let cur = null;
+  j.querySelectorAll('.jr.poss').forEach(r => { const on = r.dataset.pid === S.seqSel; r.classList.toggle('sel', on); if (on) cur = r; });
+  if (cur && scroll && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+}
 function renderJournal() {
   const m = S.m, st = S.settings;
   const items = [
@@ -227,7 +234,7 @@ function renderJournal() {
     const def = (ph && ph.side === 'defense') || p.side === 'defense';
     const parts = [p.phase ? lab(st.phases, p.phase, p.phaseLabel) : 'Situation', p.jeu ? lab(st.jeux, p.jeu, p.jeuLabel) : '', p.issue ? lab(st.issues, p.issue, p.issueLabel) : ''].filter(Boolean);
     const sub = [p.inc ? 'à compléter' : '', p.playerId || p.pname ? (p.pnum ? '#' + p.pnum + ' ' : '') + (p.pname || '') : '', p.real ? lab(st.realisations, p.real, p.realLabel) : '', p.cause ? lab(st.causes, p.cause, p.causeLabel) : ''].filter(Boolean).join(' · ');
-    return `<div class="jr poss ${def ? 'def' : ''}" data-act="goto" data-t="${Math.max(0, p.start - 2)}">
+    return `<div class="jr poss ${def ? 'def' : ''} ${p.id === S.seqSel ? 'sel' : ''}" data-pid="${p.id}" data-act="goto" data-t="${Math.max(0, p.start - 2)}">
       <span class="g">${gameLabel(m, p.start)}</span><span class="v mono">${fmtL(p.start)}</span>
       <span class="t"><i class="dot" style="background:${catColor(p.phase)}"></i>Possession · ${parts.map(esc).join(' · ')}<small>${esc(sub)}${sub ? ' · ' : ''}${Math.round(p.end - p.start)} s de vidéo</small></span>
       <span class="bt">${p.inc ? `<button class="btn small" type="button" data-act="rqresume" data-id="${p.id}">Compléter</button>` : ''}<button class="btn small" type="button" data-act="editposs" data-id="${p.id}">Modifier</button>

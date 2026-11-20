@@ -414,3 +414,6 @@ body.fs #seqbar{display:none!important}
 .jr .btn{min-height:26px;padding:0 9px;font-size:12px;border-radius:7px}
 .jr{gap:6px}
 .seq-ed + .seq-help{display:none}
+
+/* v3v : séquence choisie repérée dans le journal */
+.jr.sel{outline:3px solid #F5D547;outline-offset:-3px;background:rgba(245,213,71,.14);border-radius:8px}

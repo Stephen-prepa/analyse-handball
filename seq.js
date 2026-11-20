@@ -46,6 +46,7 @@ function renderBanner() {
       <div class="seq-t"><b>${esc(seqTitle(p))}</b></div><div class="seq-m">${seqInfo(p)}${(p.offS || p.offE) ? ' · ajustée' : ''}</div></div>`).join('');
   bar.innerHTML = head + editor + `<div class="seq-row">${cards || '<p class="hint" style="margin:6px 0">Aucune séquence. Les situations que tu marques apparaissent ici.</p>'}</div>`;
   const c = bar.querySelector('.seq-card.sel'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  if (typeof journalSel === 'function') journalSel(true);
 }
 
 /* grand écran : la vidéo remplit la fenêtre, une colonne montre les dernières séquences */
