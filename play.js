@@ -15,9 +15,13 @@ function plGo(i) {
   if (!S.m || S.m.id !== it.mid || !S.videoReady) {
     const same = S.m && S.m.id === it.mid;
     if (!same) openMatch(it.mid); else setView('match');
-    S.afterVideo = it.pid; S.seqSel = it.pid;
-    toast('Choisis la vidéo du match « ' + S.m.adversaire + ' » : la lecture démarre ensuite.', 5000);
-    renderBanner();
+    S.seqSel = it.pid;
+    if (S.videoReady) { renderBanner(); seqPlay(it.pid); }
+    else {
+      S.afterVideo = it.pid;
+      toast('Choisis la vidéo du match « ' + S.m.adversaire + ' » : la lecture démarre ensuite.', 5000);
+      renderBanner();
+    }
   } else { if (S.view !== 'match') setView('match'); seqPlay(it.pid); }
   plRender();
 }

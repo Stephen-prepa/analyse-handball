@@ -443,7 +443,11 @@ function openMatch(id) {
   S.m = S.matches.find(x => x.id === id);
   S.player = null; S.lastTag = null; lastT = -1;
   S.rq.cur = null; S.rq.undoId = null; S.rq.lastSecs = null; S.seqSel = null; S.playWin = null; setFs(false);
-  unloadVideo(); if (S.ann) { S.ann.on = false; S.ann.sel = null; }
+  /* même match qu'avant : on garde la vidéo déjà chargée (pas besoin de la rechoisir dans les fichiers) */
+  const keep = S.kept === id && S.videoReady && V().getAttribute('src');
+  if (!keep) unloadVideo();
+  S.kept = null;
+  if (S.ann) { S.ann.on = false; S.ann.sel = null; }
   S.m.opened = Date.now(); DB.put('matches', S.m).catch(() => { });
   setView('match');
   if (!S.m.sheet.length && S.roster.length) dlgSheet();
@@ -602,7 +606,7 @@ document.addEventListener('click', e => {
   if (!el) return;
   const d = el.dataset, v = V();
   switch (d.act) {
-    case 'home': unloadVideo(); S.m = null; setView('home'); break;
+    case 'home': try { V().pause(); } catch (e) { } S.kept = S.m && S.videoReady ? S.m.id : null; if (!S.kept) unloadVideo(); S.m = null; setView('home'); break;
     case 'roster': setView('roster'); break;
     case 'roster-from-dlg': closeDlg(); setView('roster'); break;
     case 'settings': S.backTo = S.view === 'match' ? 'match' : null; if (S.view === 'match' && S.videoReady) { try { V().pause(); } catch (e) { } } setView('settings'); break;
@@ -614,14 +618,14 @@ document.addEventListener('click', e => {
       S.matches.push(m); DB.put('matches', m).catch(warnStore); closeDlg(); openMatch(m.id); break;
     }
     case 'openmatch': openMatch(d.id); break;
-    case 'homeseq': { openMatch(d.m); S.seqSel = d.id; S.afterVideo = d.id; renderBanner(); toast('Choisis la vidéo du match pour revoir cette séquence.', 4000); break; }
+    case 'homeseq': { openMatch(d.m); S.seqSel = d.id; if (S.videoReady) { renderBanner(); seqPlay(d.id); } else { S.afterVideo = d.id; renderBanner(); toast('Choisis la vidéo du match pour revoir cette séquence.', 4000); } break; }
     case 'matchinfo': dlgMatchInfo(d.id); break;
     case 'matchcsv': { const m = S.matches.find(x => x.id === d.id); if (m) download(`${slug(m.date + '-hbccs-' + m.adversaire)}.csv`, buildCSV(m), 'text/csv;charset=utf-8'); break; }
-    case 'delmatch2': { const m = S.matches.find(x => x.id === d.id); if (m && confirm(`Supprimer le match contre ${m.adversaire} et toutes ses données ?`)) { S.matches = S.matches.filter(x => x.id !== d.id); DB.del('matches', d.id).catch(warnStore); Cloud.remove(d.id); closeDlg(); renderHome(); } break; }
+    case 'delmatch2': { const m = S.matches.find(x => x.id === d.id); if (m && confirm(`Supprimer le match contre ${m.adversaire} et toutes ses données ?`)) { S.matches = S.matches.filter(x => x.id !== d.id); DB.del('matches', d.id).catch(warnStore); Cloud.remove(d.id); if (S.kept === d.id) { S.kept = null; unloadVideo(); } closeDlg(); renderHome(); } break; }
     case 'delmatch': {
       const m = S.matches.find(x => x.id === d.id);
       if (confirm(`Supprimer le match contre ${m.adversaire} et toutes ses données ?`)) {
-        S.matches = S.matches.filter(x => x.id !== d.id); DB.del('matches', d.id).catch(warnStore); Cloud.remove(d.id); renderHome();
+        S.matches = S.matches.filter(x => x.id !== d.id); DB.del('matches', d.id).catch(warnStore); Cloud.remove(d.id); if (S.kept === d.id) { S.kept = null; unloadVideo(); } renderHome();
       }
       break;
     }
@@ -814,6 +818,7 @@ function bindStatic() {
     S.videoReady = false; $('#novideo').hidden = false;
     toast('Cette vidéo ne se lit pas ici. Essaie un fichier MP4 (H.264).');
   });
+  window.addEventListener('beforeunload', e => { if (S.m && S.videoReady) { e.preventDefault(); e.returnValue = ''; } });
   v.addEventListener('play', () => $('#playicon').setAttribute('d', 'M6 4h4v16H6zM14 4h4v16h-4z'));
   v.addEventListener('pause', () => $('#playicon').setAttribute('d', 'M7 4.5v15l13-7.5z'));
   window.addEventListener('resize', () => {
