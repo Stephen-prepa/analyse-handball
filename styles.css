@@ -424,3 +424,9 @@ body.fs #seqbar{display:none!important}
 .seq-fc i{font-style:normal;opacity:.7;font-size:11px}
 .seq-fc.on{background:var(--cc,var(--accent));color:#0E1318;font-weight:700;border-color:var(--cc,var(--accent))}
 .seq-fc.on i{opacity:.8}
+
+/* v3z : barre de position précise (séquence) */
+.scrubw{position:relative;flex:1;min-width:0;display:flex;align-items:center}
+.scrubw #scrub{width:100%}
+#scrubband{position:absolute;left:0;top:50%;height:10px;margin-top:-5px;border-radius:5px;background:var(--accent);opacity:.35;pointer-events:none}
+#scrubmode{min-height:26px;padding:0 10px;font-size:12px;flex:none}

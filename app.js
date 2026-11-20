@@ -294,11 +294,26 @@ function renderPanel() {
 
 /* ----- temps réel (lecteur) ----- */
 let lastT = -1;
+/* barre de position : sur le match entier, ou « précise » : limitée à la séquence choisie (± 4 s) */
+function scrubRange() {
+  const v = V(), d = v.duration;
+  if (!d || !isFinite(d)) return null;
+  const sq = S.m && S.seqSel && S.scrubSeq !== false ? seqList().find(p => p.id === S.seqSel) : null;
+  if (!sq) return { a: 0, b: d, seq: false };
+  const w = seqWin(sq); return { a: Math.max(0, w.a - 4), b: Math.min(d, w.b + 4), seq: true, wa: w.a, wb: w.b };
+}
+function updateScrubMode() {
+  const btn = $('#scrubmode'), has = !!(S.m && S.seqSel && seqList().some(p => p.id === S.seqSel));
+  if (btn) { btn.hidden = !has; btn.textContent = S.scrubSeq !== false ? 'Match entier' : 'Séquence'; btn.title = S.scrubSeq !== false ? 'Revenir à la barre du match entier' : 'Barre précise : seulement la séquence choisie'; }
+  const band = $('#scrubband'), r = scrubRange();
+  if (band) { const on = r && r.seq; band.hidden = !on; if (on) { band.style.left = ((r.wa - r.a) / (r.b - r.a) * 100) + '%'; band.style.width = ((r.wb - r.wa) / (r.b - r.a) * 100) + '%'; } }
+  updateTime(V().currentTime || 0);
+}
 function updateTime(t) {
   const v = V(), d = v.duration;
   $('#vt').textContent = fmtL(t) + ' / ' + fmtL(isFinite(d) ? d : 0);
   if (d && isFinite(d)) {
-    $('#scrub').value = Math.round(t / d * 1000);
+    const r = scrubRange(); $('#scrub').value = Math.round(Math.min(1, Math.max(0, (t - r.a) / ((r.b - r.a) || 1))) * 2000);
     const p = $('#playhead'); if (p) p.style.left = (t / d * 100) + '%';
   }
   const g = $('#gclock');
@@ -643,6 +658,7 @@ document.addEventListener('click', e => {
     case 'rqundo': rqUndo(); break;
     case 'rqresume': rqResume(d.id); break;
     case 'seqplay': seqPlay(d.id); break;
+    case 'scrubmode': S.scrubSeq = S.scrubSeq === false; updateScrubMode(); break;
     case 'seqfilter': { const id = d.f; if (!id) S.seqFilter = []; else { const f = S.seqFilter || []; S.seqFilter = f.includes(id) ? f.filter(x => x !== id) : [...f, id]; } renderBanner(); break; }
     case 'seqreset': seqReset(d.id); break;
     case 'seqtoggle': S.seqOpen = S.seqOpen === false; renderBanner(); break;
@@ -802,7 +818,7 @@ function bindStatic() {
   const v = V();
   $('#filevideo').addEventListener('change', e => { const f = e.target.files[0]; if (f && S.m) loadVideo(f); e.target.value = ''; });
   $('#fileimport').addEventListener('change', e => { const f = e.target.files[0]; if (f) importJSON(f); e.target.value = ''; });
-  $('#scrub').addEventListener('input', e => { if (S.videoReady) v.currentTime = Number(e.target.value) / 1000 * v.duration; });
+  $('#scrub').addEventListener('input', e => { if (!S.videoReady) return; const r = scrubRange(); if (r) v.currentTime = r.a + Number(e.target.value) / 2000 * (r.b - r.a); });
   v.addEventListener('loadedmetadata', () => {
     S.videoReady = true; $('#novideo').hidden = true;
     v.playbackRate = SPEEDS[S.speedIdx];

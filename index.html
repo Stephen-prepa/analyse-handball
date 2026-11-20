@@ -57,7 +57,8 @@
           <button class="btn" type="button" data-link="ask" title="Ouvrir une vidéo depuis un lien">Lien</button>
         </div>
         <div class="srow">
-          <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Position dans la vidéo">
+          <button class="btn small" type="button" id="scrubmode" data-act="scrubmode" hidden title="Barre précise : seulement la séquence choisie">Séquence</button>
+          <div class="scrubw"><input type="range" id="scrub" min="0" max="2000" value="0" step="1" aria-label="Position dans la vidéo"><i id="scrubband" hidden></i></div>
           <span id="vt" class="mono">00:00:00 / 00:00:00</span>
         </div>
       </div>

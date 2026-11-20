@@ -28,7 +28,7 @@ function renderBanner() {
   const head = `<div class="seq-h"><b>Séquences · ${f.length ? vis.length + '/' : ''}${list.length}</b><span class="muted seq-hint">${list.some(p => p.inc) ? 'bord orange = à compléter' : 'touche une carte pour la revoir'}</span><span class="grow"></span>
     <button class="btn small" type="button" data-act="fs">Plein écran (F)</button>
     <button class="btn small" type="button" data-act="seqtoggle" aria-label="${open ? 'Réduire le bandeau' : 'Agrandir le bandeau'}">${open ? '▾' : '▴'}</button></div>`;
-  if (!open) { bar.innerHTML = head; return; }
+  if (!open) { bar.innerHTML = head; if (typeof updateScrubMode === 'function') updateScrubMode(); return; }
   const headF = head + chips;
   let editor = '<p class="seq-help">Touche une carte pour la revoir, puis règle son début et sa fin.</p>';
   if (sel) {
@@ -54,6 +54,7 @@ function renderBanner() {
   bar.innerHTML = headF + editor + `<div class="seq-row">${cards || `<p class="hint" style="margin:6px 0">${list.length ? 'Aucune séquence dans ce filtre. Touche « Toutes » pour tout revoir.' : 'Aucune séquence. Les situations que tu marques apparaissent ici.'}</p>`}</div>`;
   const c = bar.querySelector('.seq-card.sel'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   if (typeof journalSel === 'function') journalSel(true);
+  if (typeof updateScrubMode === 'function') updateScrubMode();
 }
 
 /* grand écran : la vidéo remplit la fenêtre, une colonne montre les dernières séquences */
