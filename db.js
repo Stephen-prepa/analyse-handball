@@ -2,8 +2,8 @@
 /* Stockage local (IndexedDB) + valeurs par défaut */
 
 /* numéro de version affiché dans l'app : à changer à chaque livraison (et le nom du cache dans sw.js) */
-const APP_VERSION='3v';
-const APP_CACHE = 'hb-analyse-v23';
+const APP_VERSION='3w';
+const APP_CACHE = 'hb-analyse-v24';
 
 const DB = (() => {
   let db;
@@ -63,7 +63,11 @@ const DEFAULTS = {
     { id: 'sup', label: 'Supériorité numérique', side: 'attaque', jeu: true, color: '#B388FF' },
     { id: 'inf', label: 'Infériorité numérique', side: 'attaque', jeu: true, color: '#F5D547' },
     { id: 'repli', label: 'Repli', side: 'defense', jeu: false, color: '#FF7EB6' },
-    { id: 'def-placee', label: 'Défense placée', side: 'defense', jeu: true, color: '#FF6B6B', key: 'd' }
+    { id: 'def-placee', label: 'Défense placée', side: 'defense', jeu: true, color: '#FF6B6B', key: 'd' },
+    { id: 'att-pos', label: 'ATT +', side: 'attaque', jeu: false, color: '#2FBF71' },
+    { id: 'att-neg', label: 'ATT −', side: 'attaque', jeu: false, color: '#E5484D' },
+    { id: 'def-pos', label: 'DEF +', side: 'defense', jeu: false, color: '#2FBF71' },
+    { id: 'def-neg', label: 'DEF −', side: 'defense', jeu: false, color: '#E5484D' }
   ],
   jeux: [
     { id: 'comb-a', label: 'Combinaison A', kind: 'combinaison', side: 'attaque' },

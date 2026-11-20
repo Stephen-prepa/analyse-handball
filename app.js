@@ -844,6 +844,13 @@ function migrateSettings() {
   st.phases.forEach((p, i) => { if (!p.color) p.color = PHASE_COLORS[p.id] || PALETTE[i % PALETTE.length]; });
   st.phases.forEach(p => { if (p.jeu === undefined) { const d = D.phases.find(x => x.id === p.id); p.jeu = d ? d.jeu : true; } });
   if (!st.issues.some(i => i.id === 'pas-but')) st.issues.splice(st.issues.length - 1, 0, clone(D.issues.find(i => i.id === 'pas-but')));
+  /* une seule fois : catégories d'évaluation ATT + / ATT − / DEF + / DEF − (ensuite tu peux les modifier ou les supprimer librement) */
+  st.migr = st.migr || {};
+  if (!st.migr.posneg) {
+    st.migr.posneg = true;
+    D.phases.filter(p => ['att-pos', 'att-neg', 'def-pos', 'def-neg'].includes(p.id)).forEach(p => { if (!st.phases.some(x => x.id === p.id)) st.phases.push(clone(p)); });
+    S.settingsMigrated = true;
+  }
 }
 
 async function init() {
@@ -862,6 +869,7 @@ async function init() {
   }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => { });
   migrateSettings();
+  if (S.settingsMigrated) { S.settingsMigrated = false; try { saveSettings(); } catch (e) { } }
   bindStatic();
   applyReplayBtn();
   setView('home');
