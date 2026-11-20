@@ -430,3 +430,8 @@ body.fs #seqbar{display:none!important}
 .scrubw #scrub{width:100%}
 #scrubband{position:absolute;left:0;top:50%;height:10px;margin-top:-5px;border-radius:5px;background:var(--accent);opacity:.35;pointer-events:none}
 #scrubmode{min-height:26px;padding:0 10px;font-size:12px;flex:none}
+
+/* v4a : séquences annotées */
+.seq-an{display:inline-block;margin-left:6px;padding:0 6px;border-radius:999px;background:#F5D547;color:#0E1318;font-size:11px;font-weight:700;line-height:18px;vertical-align:1px;flex:none}
+.seq-t{display:flex;align-items:center;min-width:0}
+.seq-t b{min-width:0;flex:0 1 auto}

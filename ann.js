@@ -138,7 +138,7 @@ function annSet(on) {
   if (on) { if (!S.videoReady) { toast('Choisis d’abord la vidéo.'); st.on = false; return; } V().pause(); }
   renderAnnTools();
 }
-function annSave() { S.m.updated = Date.now(); saveMatch(); }
+function annSave() { S.m.updated = Date.now(); saveMatch(); try { renderBanner(); renderJournal(); } catch (e) { } }
 function annExportPNG() {
   const v = V(); if (!S.videoReady) return;
   const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;

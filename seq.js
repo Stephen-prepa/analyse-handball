@@ -8,7 +8,9 @@ const SC_LABELS = {
 const seqWin = p => ({ a: Math.max(0, p.start - (p.offS || 0)), b: p.end + (p.offE || 0) });
 const seqList = () => (S.m ? S.m.possessions : []);
 /* filtre des séquences du bas : par catégorie du marquage rapide (ou « à compléter ») */
-const seqVisible = () => { const f = S.seqFilter || [], l = seqList(); return f.length ? l.filter(p => f.includes(p.phase) || (f.includes('__inc') && p.inc)) : l; };
+/* nombre de dessins (annotations) rattachés à une séquence */
+const seqAnnN = p => { const w = seqWin(p); return ((S.m && S.m.ann) || []).filter(a => a.sid === p.id || (!a.sid && a.t0 >= w.a && a.t0 <= w.b)).length; };
+const seqVisible = () => { const f = S.seqFilter || [], l = seqList(); return f.length ? l.filter(p => f.includes(p.phase) || (f.includes('__inc') && p.inc) || (f.includes('__ann') && seqAnnN(p) > 0)) : l; };
 const catColor = (id, snap) => { const p = id && byId(S.settings.phases, id); return (p && p.color) || snap || '#9AA8B6'; };
 const seqTitle = p => [p.phase ? lab(S.settings.phases, p.phase, p.phaseLabel) : 'Situation', p.jeu ? lab(S.settings.jeux, p.jeu, p.jeuLabel) : ''].filter(Boolean).join(' · ');
 const seqInfo = p => {
@@ -23,8 +25,8 @@ function renderBanner() {
   const list = seqList(), open = S.seqOpen !== false, sel = list.find(p => p.id === S.seqSel);
   const vis = seqVisible(), f = S.seqFilter || [];
   const cats = []; list.forEach(p => { if (p.phase && !cats.some(c => c.id === p.phase)) cats.push({ id: p.phase, label: lab(S.settings.phases, p.phase, p.phaseLabel), color: catColor(p.phase, p.phaseColor) }); });
-  const cnt = id => list.filter(p => p.phase === id).length, nInc = list.filter(p => p.inc).length;
-  const chips = list.length > 1 ? `<div class="seq-f"><button type="button" class="seq-fc ${f.length ? '' : 'on'}" data-act="seqfilter" data-f="">Toutes</button>${cats.map(c => `<button type="button" class="seq-fc ${f.includes(c.id) ? 'on' : ''}" style="--cc:${c.color}" data-act="seqfilter" data-f="${esc(c.id)}">${esc(c.label)} <i>${cnt(c.id)}</i></button>`).join('')}${nInc ? `<button type="button" class="seq-fc ${f.includes('__inc') ? 'on' : ''}" style="--cc:#F5B942" data-act="seqfilter" data-f="__inc">À compléter <i>${nInc}</i></button>` : ''}</div>` : '';
+  const cnt = id => list.filter(p => p.phase === id).length, nInc = list.filter(p => p.inc).length, nAnn = list.filter(p => seqAnnN(p) > 0).length;
+  const chips = list.length > 1 ? `<div class="seq-f"><button type="button" class="seq-fc ${f.length ? '' : 'on'}" data-act="seqfilter" data-f="">Toutes</button>${cats.map(c => `<button type="button" class="seq-fc ${f.includes(c.id) ? 'on' : ''}" style="--cc:${c.color}" data-act="seqfilter" data-f="${esc(c.id)}">${esc(c.label)} <i>${cnt(c.id)}</i></button>`).join('')}${nInc ? `<button type="button" class="seq-fc ${f.includes('__inc') ? 'on' : ''}" style="--cc:#F5B942" data-act="seqfilter" data-f="__inc">À compléter <i>${nInc}</i></button>` : ''}${nAnn ? `<button type="button" class="seq-fc ${f.includes('__ann') ? 'on' : ''}" style="--cc:#F5D547" data-f="__ann" data-act="seqfilter">✎ Annotées <i>${nAnn}</i></button>` : ''}</div>` : '';
   const head = `<div class="seq-h"><b>Séquences · ${f.length ? vis.length + '/' : ''}${list.length}</b><span class="muted seq-hint">${list.some(p => p.inc) ? 'bord orange = à compléter' : 'touche une carte pour la revoir'}</span><span class="grow"></span>
     <button class="btn small" type="button" data-act="fs">Plein écran (F)</button>
     <button class="btn small" type="button" data-act="seqtoggle" aria-label="${open ? 'Réduire le bandeau' : 'Agrandir le bandeau'}">${open ? '▾' : '▴'}</button></div>`;
@@ -50,7 +52,7 @@ function renderBanner() {
       <p class="seq-help">Après chaque réglage, la séquence se rejoue. Ta saisie d’origine n’est jamais modifiée.</p>`;
   }
   const cards = vis.map(p => `<div class="seq-card ${p.id === S.seqSel ? 'sel' : ''} ${p.inc ? 'inc' : ''}" style="--cc:${catColor(p.phase, p.phaseColor)}" data-act="seqplay" data-id="${p.id}" role="button" tabindex="0">
-      <div class="seq-t"><b>${esc(seqTitle(p))}</b></div><div class="seq-m">${seqInfo(p)}${(p.offS || p.offE) ? ' · ajustée' : ''}</div></div>`).join('');
+      <div class="seq-t"><b>${esc(seqTitle(p))}</b>${seqAnnN(p) ? `<span class="seq-an" title="Séquence annotée">✎ ${seqAnnN(p)}</span>` : ''}</div><div class="seq-m">${seqInfo(p)}${(p.offS || p.offE) ? ' · ajustée' : ''}</div></div>`).join('');
   bar.innerHTML = headF + editor + `<div class="seq-row">${cards || `<p class="hint" style="margin:6px 0">${list.length ? 'Aucune séquence dans ce filtre. Touche « Toutes » pour tout revoir.' : 'Aucune séquence. Les situations que tu marques apparaissent ici.'}</p>`}</div>`;
   const c = bar.querySelector('.seq-card.sel'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   if (typeof journalSel === 'function') journalSel(true);

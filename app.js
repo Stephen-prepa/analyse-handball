@@ -236,7 +236,7 @@ function renderJournal() {
     const sub = [p.inc ? 'à compléter' : '', p.playerId || p.pname ? (p.pnum ? '#' + p.pnum + ' ' : '') + (p.pname || '') : '', p.real ? lab(st.realisations, p.real, p.realLabel) : '', p.cause ? lab(st.causes, p.cause, p.causeLabel) : ''].filter(Boolean).join(' · ');
     return `<div class="jr poss ${def ? 'def' : ''} ${p.id === S.seqSel ? 'sel' : ''}" data-pid="${p.id}" data-act="goto" data-t="${Math.max(0, p.start - 2)}">
       <span class="g">${gameLabel(m, p.start)}</span><span class="v mono">${fmtL(p.start)}</span>
-      <span class="t"><i class="dot" style="background:${catColor(p.phase)}"></i>Possession · ${parts.map(esc).join(' · ')}<small>${esc(sub)}${sub ? ' · ' : ''}${Math.round(p.end - p.start)} s de vidéo</small></span>
+      <span class="t"><i class="dot" style="background:${catColor(p.phase)}"></i>Possession · ${parts.map(esc).join(' · ')}${typeof seqAnnN === 'function' && seqAnnN(p) ? ` <span class="seq-an" title="Séquence annotée">✎ ${seqAnnN(p)}</span>` : ''}<small>${esc(sub)}${sub ? ' · ' : ''}${Math.round(p.end - p.start)} s de vidéo</small></span>
       <span class="bt">${p.inc ? `<button class="btn small" type="button" data-act="rqresume" data-id="${p.id}">Compléter</button>` : ''}<button class="btn small" type="button" data-act="editposs" data-id="${p.id}">Modifier</button>
       <button class="btn small danger" type="button" data-act="delposs" data-id="${p.id}" aria-label="Supprimer">✕</button></span></div>`;
   }).join('');
