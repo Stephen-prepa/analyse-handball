@@ -9,7 +9,7 @@ const seqWin = p => ({ a: Math.max(0, p.start - (p.offS || 0)), b: p.end + (p.of
 const seqList = () => (S.m ? S.m.possessions : []);
 /* filtre des séquences du bas : par catégorie du marquage rapide (ou « à compléter ») */
 /* nombre de dessins (annotations) rattachés à une séquence */
-const seqAnnN = p => { const w = seqWin(p); return ((S.m && S.m.ann) || []).filter(a => a.sid === p.id || (!a.sid && a.t0 >= w.a && a.t0 <= w.b)).length; };
+const seqAnnN = p => { const w = seqWin(p), l = ((S.m && S.m.ann) || []).filter(a => a.sid === p.id || (!a.sid && a.t0 >= w.a && a.t0 <= w.b)), n = l.filter(a => a.type !== 'joueur').length; return n || (l.length ? 1 : 0); };
 const seqVisible = () => { const f = S.seqFilter || [], l = seqList(); return f.length ? l.filter(p => f.includes(p.phase) || (f.includes('__inc') && p.inc) || (f.includes('__ann') && seqAnnN(p) > 0)) : l; };
 const catColor = (id, snap) => { const p = id && byId(S.settings.phases, id); return (p && p.color) || snap || '#9AA8B6'; };
 const seqTitle = p => [p.phase ? lab(S.settings.phases, p.phase, p.phaseLabel) : 'Situation', p.jeu ? lab(S.settings.jeux, p.jeu, p.jeuLabel) : ''].filter(Boolean).join(' · ');
